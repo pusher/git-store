@@ -41,7 +41,7 @@ func TestCheckoutAndGetFile(t *testing.T) {
 	// Try to read CHANGLOG (which doesn't exist)
 	changelog, err := repo.GetFile("CHANGELOG")
 	assert.NotEqual(t, nil, err, "Should not be able to read CHANGELOG, file does not exist")
-	assert.NotEqual(t, nil, changelog.Contents, "CHANGELOG file should be empty")
+	assert.NotEqual(t, nil, changelog, "CHANGELOG file should be empty")
 
 	// Check out the second commit from the REPO
 	err = repo.Checkout("b8e471f58bcbca63b07bda20e428190409c2db47")
@@ -50,8 +50,8 @@ func TestCheckoutAndGetFile(t *testing.T) {
 	// Try to read CHANGLOG (which does now exist)
 	// Read the CHANGELOG file from the first commit
 	changelog, err = repo.GetFile("CHANGELOG")
-	assert.Equal(t, nil, err, "Should be able to read CHANGELOG file without error")
-	assert.Equal(t, "Initial changelog\n", changelog.Contents, "CHANGELOG file should read `Initial changelog\\n`")
+	assert.Equal(t, nil, err, "Should be able to fetch CHANGELOG file without error")
+	assert.Equal(t, "Initial changelog\n", changelog.Contents(), "CHANGELOG file should read `Initial changelog\\n`")
 }
 
 func TestGetAllFiles(t *testing.T) {
@@ -73,13 +73,13 @@ func TestGetAllFiles(t *testing.T) {
 
 	// Read the CHANGELOG file
 	changelog, ok := files["CHANGELOG"]
-	assert.Equal(t, true, ok, "Should be able to read CHANGELOG file from map")
-	assert.Equal(t, "Initial changelog\n", changelog.Contents, "CHANGELOG file should read `Initial changelog\\n`")
+	assert.Equal(t, true, ok, "Should be able to fetch CHANGELOG file from map")
+	assert.Equal(t, "Initial changelog\n", changelog.Contents(), "CHANGELOG file should read `Initial changelog\\n`")
 
 	// Read the vendor/foo.go file
 	expectedFoo := "package main\n\nimport \"fmt\"\n\nfunc main() {\n	fmt.Println(\"Hello, playground\")\n}\n"
 	foo, ok := files["vendor/foo.go"]
 	assert.Equal(t, true, ok, "Should be able to read `vendor/foo.go` file from map")
-	assert.Equal(t, expectedFoo, foo.Contents, "`vendor/foo.go` does not have expected content")
+	assert.Equal(t, expectedFoo, foo.Contents(), "`vendor/foo.go` does not have expected content")
 
 }

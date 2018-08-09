@@ -31,8 +31,8 @@ type Repo struct {
 
 // File represents a file content and log pair from the repository
 type File struct {
-	Contents string
-	Log      GitLog
+	file *object.File
+	Log  GitLog
 }
 
 // GitLog contains information about a commit from the git repository log
@@ -97,26 +97,21 @@ func (r *Repo) Fetch() error {
 }
 
 // GetFile returns the contents of a file from within the repository
-func (r *Repo) GetFile(path string) (File, error) {
+func (r *Repo) GetFile(path string) (*File, error) {
 	// Open file from repository
 	file, err := r.getFile(path)
 	if err != nil {
-		return File{}, fmt.Errorf("unable to load file %s: %v", path, err)
-	}
-
-	contents, err := file.Contents()
-	if err != nil {
-		return File{}, fmt.Errorf("unable to retrieve file contents: %v", err)
+		return nil, fmt.Errorf("unable to load file %s: %v", path, err)
 	}
 
 	fileLog, err := r.getFileLog(path)
 	if err != nil {
-		return File{}, fmt.Errorf("unable to get log: %v", err)
+		return nil, fmt.Errorf("unable to get log: %v", err)
 	}
 
-	return File{
-		Contents: contents,
-		Log:      fileLog,
+	return &File{
+		file: file,
+		Log:  fileLog,
 	}, nil
 }
 
@@ -179,26 +174,21 @@ func (r *Repo) getFileLog(path string) (GitLog, error) {
 
 // GetAllFiles returns a map of Files.
 // Each file is keyed in the map by it's path within the repository
-func (r *Repo) GetAllFiles() (map[string]File, error) {
+func (r *Repo) GetAllFiles() (map[string]*File, error) {
 	rawFiles, err := r.getAllFiles()
 	if err != nil {
 		return nil, fmt.Errorf("unable to read files from repository: %v", err)
 	}
 
-	files := make(map[string]File)
+	files := make(map[string]*File)
 	for path, file := range rawFiles {
-		contents, err := file.Contents()
-		if err != nil {
-			return nil, fmt.Errorf("unable to retrieve contents for %s: %v", path, err)
-		}
-
 		fileLog, err := r.getFileLog(path)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get log for %s: %v", path, err)
 		}
-		files[path] = File{
-			Contents: contents,
-			Log:      fileLog,
+		files[path] = &File{
+			file: file,
+			Log:  fileLog,
 		}
 	}
 	return files, nil
@@ -227,4 +217,16 @@ func (r *Repo) getAllFiles() (map[string]*object.File, error) {
 	})
 
 	return files, nil
+}
+
+// Contents returns the content of a file
+func (f *File) Contents() string {
+	if f.file == nil {
+		return ""
+	}
+	content, err := f.file.Contents()
+	if err != nil {
+		return ""
+	}
+	return content
 }
