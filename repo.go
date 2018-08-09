@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gobwas/glob"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -31,8 +32,8 @@ type Repo struct {
 
 // File represents a file content and log pair from the repository
 type File struct {
-	Contents string
-	Log      GitLog
+	file *object.File
+	Log  GitLog
 }
 
 // GitLog contains information about a commit from the git repository log
@@ -97,26 +98,21 @@ func (r *Repo) Fetch() error {
 }
 
 // GetFile returns the contents of a file from within the repository
-func (r *Repo) GetFile(path string) (File, error) {
+func (r *Repo) GetFile(path string) (*File, error) {
 	// Open file from repository
 	file, err := r.getFile(path)
 	if err != nil {
-		return File{}, fmt.Errorf("unable to load file %s: %v", path, err)
-	}
-
-	contents, err := file.Contents()
-	if err != nil {
-		return File{}, fmt.Errorf("unable to retrieve file contents: %v", err)
+		return nil, fmt.Errorf("unable to load file %s: %v", path, err)
 	}
 
 	fileLog, err := r.getFileLog(path)
 	if err != nil {
-		return File{}, fmt.Errorf("unable to get log: %v", err)
+		return nil, fmt.Errorf("unable to get log: %v", err)
 	}
 
-	return File{
-		Contents: contents,
-		Log:      fileLog,
+	return &File{
+		file: file,
+		Log:  fileLog,
 	}, nil
 }
 
@@ -175,4 +171,76 @@ func (r *Repo) getFileLog(path string) (GitLog, error) {
 	}
 
 	return fileLog, nil
+}
+
+// GetAllFiles returns a map of Files.
+// Each file is keyed in the map by it's path within the repository
+func (r *Repo) GetAllFiles(subPath string) (map[string]*File, error) {
+	rawFiles, err := r.getAllFiles()
+	if err != nil {
+		return nil, fmt.Errorf("unable to read files from repository: %v", err)
+	}
+
+	var g glob.Glob
+	if subPath != "" {
+		g, err = glob.Compile(subPath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to compile subPath matcher: %v", err)
+		}
+	}
+
+	files := make(map[string]*File)
+	for path, file := range rawFiles {
+		// If subPath is set, skip the file if it doesn't match
+		if g != nil && !g.Match(path) {
+			continue
+		}
+
+		fileLog, err := r.getFileLog(path)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get log for %s: %v", path, err)
+		}
+		files[path] = &File{
+			file: file,
+			Log:  fileLog,
+		}
+	}
+	return files, nil
+}
+
+func (r *Repo) getAllFiles() (map[string]*object.File, error) {
+	head, err := r.repository.Head()
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch HEAD: %v", err)
+	}
+
+	commit, err := r.repository.CommitObject(head.Hash())
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch HEAD commit: %v", err)
+	}
+
+	fileiter, err := commit.Files()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load files: %v", err)
+	}
+
+	files := make(map[string]*object.File)
+	fileiter.ForEach(func(file *object.File) error {
+		files[file.Name] = file
+		return nil
+	})
+
+	return files, nil
+}
+
+// Contents returns the content of a file
+func (f *File) Contents() string {
+	if f.file == nil {
+		return ""
+	}
+	content, err := f.file.Contents()
+	if err != nil {
+		return ""
+	}
+	return content
 }
