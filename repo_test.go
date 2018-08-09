@@ -70,4 +70,16 @@ func TestGetAllFiles(t *testing.T) {
 	files, err := repo.GetAllFiles()
 	assert.Equal(t, nil, err, "Should be able to read all files without error")
 	assert.Equal(t, 9, len(files), "Should be 9 files in the repository")
+
+	// Read the CHANGELOG file
+	changelog, ok := files["CHANGELOG"]
+	assert.Equal(t, true, ok, "Should be able to read CHANGELOG file from map")
+	assert.Equal(t, "Initial changelog\n", changelog.Contents, "CHANGELOG file should read `Initial changelog\\n`")
+
+	// Read the vendor/foo.go file
+	expectedFoo := "package main\n\nimport \"fmt\"\n\nfunc main() {\n	fmt.Println(\"Hello, playground\")\n}\n"
+	foo, ok := files["vendor/foo.go"]
+	assert.Equal(t, true, ok, "Should be able to read `vendor/foo.go` file from map")
+	assert.Equal(t, expectedFoo, foo.Contents, "`vendor/foo.go` does not have expected content")
+
 }

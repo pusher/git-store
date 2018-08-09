@@ -180,6 +180,51 @@ func (r *Repo) getFileLog(path string) (GitLog, error) {
 // GetAllFiles returns a map of Files.
 // Each file is keyed in the map by it's path within the repository
 func (r *Repo) GetAllFiles() (map[string]File, error) {
+	rawFiles, err := r.getAllFiles()
+	if err != nil {
+		return nil, fmt.Errorf("unable to read files from repository: %v", err)
+	}
+
 	files := make(map[string]File)
+	for path, file := range rawFiles {
+		contents, err := file.Contents()
+		if err != nil {
+			return nil, fmt.Errorf("unable to retrieve contents for %s: %v", path, err)
+		}
+
+		fileLog, err := r.getFileLog(path)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get log for %s: %v", path, err)
+		}
+		files[path] = File{
+			Contents: contents,
+			Log:      fileLog,
+		}
+	}
+	return files, nil
+}
+
+func (r *Repo) getAllFiles() (map[string]*object.File, error) {
+	head, err := r.repository.Head()
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch HEAD: %v", err)
+	}
+
+	commit, err := r.repository.CommitObject(head.Hash())
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch HEAD commit: %v", err)
+	}
+
+	fileiter, err := commit.Files()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load files: %v", err)
+	}
+
+	files := make(map[string]*object.File)
+	fileiter.ForEach(func(file *object.File) error {
+		files[file.Name] = file
+		return nil
+	})
+
 	return files, nil
 }
