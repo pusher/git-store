@@ -192,10 +192,8 @@ func (r *Repo) GetAllFiles(subPath string) (map[string]*File, error) {
 	files := make(map[string]*File)
 	for path, file := range rawFiles {
 		// If subPath is set, skip the file if it doesn't match
-		if g != nil {
-			if !g.Match(path) {
-				continue
-			}
+		if g != nil && !g.Match(path) {
+			continue
 		}
 
 		fileLog, err := r.getFileLog(path)
