@@ -176,3 +176,10 @@ func (r *Repo) getFileLog(path string) (GitLog, error) {
 
 	return fileLog, nil
 }
+
+// GetAllFiles returns a map of Files.
+// Each file is keyed in the map by it's path within the repository
+func (r *Repo) GetAllFiles() (map[string]File, error) {
+	files := make(map[string]File)
+	return files, nil
+}

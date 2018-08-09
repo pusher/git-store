@@ -53,3 +53,21 @@ func TestCheckoutAndGetFile(t *testing.T) {
 	assert.Equal(t, nil, err, "Should be able to read CHANGELOG file without error")
 	assert.Equal(t, "Initial changelog\n", changelog.Contents, "CHANGELOG file should read `Initial changelog\\n`")
 }
+
+func TestGetAllFiles(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	rs := NewRepoStore(client)
+
+	repo, err := rs.Get(&RepoRef{
+		URL: "https://github.com/git-fixtures/basic",
+	})
+	assert.Equal(t, nil, err, "Should be able to clone repo without error")
+
+	// Check out the 8th commit from the REPO
+	err = repo.Checkout("6ecf0ef2c2dffb796033e5a02219af86ec6584e5")
+	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
+
+	files, err := repo.GetAllFiles()
+	assert.Equal(t, nil, err, "Should be able to read all files without error")
+	assert.Equal(t, 9, len(files), "Should be 9 files in the repository")
+}
