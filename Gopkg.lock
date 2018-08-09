@@ -27,6 +27,21 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/gobwas/glob"
+  packages = [
+    ".",
+    "compiler",
+    "match",
+    "syntax",
+    "syntax/ast",
+    "syntax/lexer",
+    "util/runes",
+    "util/strings"
+  ]
+  revision = "5ccd90ef52e1e632236f7326478d4faa74f99438"
+  version = "v0.2.3"
+
+[[projects]]
   name = "github.com/gogo/protobuf"
   packages = [
     "proto",
@@ -464,6 +479,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dc53548235ec7ece0251cc520782ee36754686a7131caeeca7d6a516b71e67ae"
+  inputs-digest = "d40159391874fdc39d8ad3f4abb5936689af84bfed28426e09f521e9d295143a"
   solver-name = "gps-cdcl"
   solver-version = 1

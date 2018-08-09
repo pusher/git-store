@@ -67,7 +67,7 @@ func TestGetAllFiles(t *testing.T) {
 	err = repo.Checkout("6ecf0ef2c2dffb796033e5a02219af86ec6584e5")
 	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
 
-	files, err := repo.GetAllFiles()
+	files, err := repo.GetAllFiles("")
 	assert.Equal(t, nil, err, "Should be able to read all files without error")
 	assert.Equal(t, 9, len(files), "Should be 9 files in the repository")
 
@@ -75,6 +75,50 @@ func TestGetAllFiles(t *testing.T) {
 	changelog, ok := files["CHANGELOG"]
 	assert.Equal(t, true, ok, "Should be able to fetch CHANGELOG file from map")
 	assert.Equal(t, "Initial changelog\n", changelog.Contents(), "CHANGELOG file should read `Initial changelog\\n`")
+
+	// Read the vendor/foo.go file
+	expectedFoo := "package main\n\nimport \"fmt\"\n\nfunc main() {\n	fmt.Println(\"Hello, playground\")\n}\n"
+	foo, ok := files["vendor/foo.go"]
+	assert.Equal(t, true, ok, "Should be able to read `vendor/foo.go` file from map")
+	assert.Equal(t, expectedFoo, foo.Contents(), "`vendor/foo.go` does not have expected content")
+
+}
+
+func TestGetAllFilesSubPath(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	rs := NewRepoStore(client)
+
+	repo, err := rs.Get(&RepoRef{
+		URL: "https://github.com/git-fixtures/basic",
+	})
+	assert.Equal(t, nil, err, "Should be able to clone repo without error")
+
+	// Check out the 8th commit from the REPO
+	err = repo.Checkout("6ecf0ef2c2dffb796033e5a02219af86ec6584e5")
+	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
+
+	subPathTests := []struct {
+		subPath string
+		count   int
+	}{
+		{"", 9},
+		{"**/*.go", 2},
+		{"**/*.json", 2},
+		{"json/*", 2},
+		{"vendor/*", 1},
+	}
+
+	for _, test := range subPathTests {
+		t.Run(test.subPath, func(t *testing.T) {
+			files, getErr := repo.GetAllFiles(test.subPath)
+			assert.Equal(t, nil, getErr, "Should be able to read all files without error")
+			assert.Equal(t, test.count, len(files), "Should be ", test.count, " files in the subpath")
+		})
+	}
+
+	files, err := repo.GetAllFiles("vendor/*")
+	assert.Equal(t, nil, err, "Should be able to read all files without error")
+	assert.Equal(t, 1, len(files), "Should be 1 files in the subpath")
 
 	// Read the vendor/foo.go file
 	expectedFoo := "package main\n\nimport \"fmt\"\n\nfunc main() {\n	fmt.Println(\"Hello, playground\")\n}\n"

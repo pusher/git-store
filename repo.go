@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gobwas/glob"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -174,14 +175,29 @@ func (r *Repo) getFileLog(path string) (GitLog, error) {
 
 // GetAllFiles returns a map of Files.
 // Each file is keyed in the map by it's path within the repository
-func (r *Repo) GetAllFiles() (map[string]*File, error) {
+func (r *Repo) GetAllFiles(subPath string) (map[string]*File, error) {
 	rawFiles, err := r.getAllFiles()
 	if err != nil {
 		return nil, fmt.Errorf("unable to read files from repository: %v", err)
 	}
 
+	var g glob.Glob
+	if subPath != "" {
+		g, err = glob.Compile(subPath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to compile subPath matcher: %v", err)
+		}
+	}
+
 	files := make(map[string]*File)
 	for path, file := range rawFiles {
+		// If subPath is set, skip the file if it doesn't match
+		if g != nil {
+			if !g.Match(path) {
+				continue
+			}
+		}
+
 		fileLog, err := r.getFileLog(path)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get log for %s: %v", path, err)
