@@ -133,6 +133,25 @@
   version = "1.0.1"
 
 [[projects]]
+  name = "github.com/onsi/gomega"
+  packages = [
+    ".",
+    "format",
+    "internal/assertion",
+    "internal/asyncassertion",
+    "internal/oraclematcher",
+    "internal/testingtsupport",
+    "matchers",
+    "matchers/support/goraph/bipartitegraph",
+    "matchers/support/goraph/edge",
+    "matchers/support/goraph/node",
+    "matchers/support/goraph/util",
+    "types"
+  ]
+  revision = "b6ea1ea48f981d0f615a154a45eabb9dd466556d"
+  version = "v1.4.1"
+
+[[projects]]
   name = "github.com/pelletier/go-buffruneio"
   packages = ["."]
   revision = "c37440a7cf42ac63b919c752ca73a85067e05992"
@@ -196,6 +215,9 @@
   name = "golang.org/x/net"
   packages = [
     "context",
+    "html",
+    "html/atom",
+    "html/charset",
     "http/httpguts",
     "http2",
     "http2/hpack",
@@ -217,12 +239,24 @@
   packages = [
     "collate",
     "collate/build",
+    "encoding",
+    "encoding/charmap",
+    "encoding/htmlindex",
+    "encoding/internal",
+    "encoding/internal/identifier",
+    "encoding/japanese",
+    "encoding/korean",
+    "encoding/simplifiedchinese",
+    "encoding/traditionalchinese",
+    "encoding/unicode",
     "internal/colltab",
     "internal/gen",
     "internal/tag",
     "internal/triegen",
     "internal/ucd",
+    "internal/utf8internal",
     "language",
+    "runes",
     "secure/bidirule",
     "transform",
     "unicode/bidi",
@@ -479,6 +513,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d40159391874fdc39d8ad3f4abb5936689af84bfed28426e09f521e9d295143a"
+  inputs-digest = "5c29cc93ddb57128928acf3f45bcde18cb74a38da6b3665622683e376359afba"
   solver-name = "gps-cdcl"
   solver-version = 1
