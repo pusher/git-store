@@ -16,7 +16,7 @@ type RepoCloner struct {
 }
 
 
-func (rc *RepoCloner) Clone(rs *RepoStore, auth transport.AuthMethod) {
+func (rc *RepoCloner) Clone(auth transport.AuthMethod) {
 	go func() {
         	fs := memfs.New()
         	storer := memory.NewStorage()
@@ -31,7 +31,6 @@ func (rc *RepoCloner) Clone(rs *RepoStore, auth transport.AuthMethod) {
          	       		  auth:       auth,
 		                  repository: repository,
         		}
-			rs.repositories[rc.RepoRef.URL] = repo
 			rc.Repo = repo
 			rc.Ready = true			
 		}

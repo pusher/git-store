@@ -32,8 +32,12 @@ func TestAsyncCheckout(t *testing.T) {
 	rc, err := rs.GetAsync(&RepoRef{
                 URL: "https://github.com/git-fixtures/basic",
         })
-	assert.Equal(t, false, rc.Ready, "Cloner should not be ready at start")
 	assert.Equal(t, nil, err, "Should be able to start repo clone without error")
+	if rc == nil {
+		t.Log("Returned Cloner should not be nil")
+		t.FailNow()
+	}
+	assert.Equal(t, false, rc.Ready, "Cloner should not be ready at start")
 
 
 	g.Eventually(
