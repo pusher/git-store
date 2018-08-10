@@ -93,7 +93,6 @@ func (rs *RepoStore) Get(ref *RepoRef) (*Repo, error) {
 		if (err != nil) {
 			return nil, err
 		}
-		rs.repositories[ref.URL] = rc
 	}
 	for (!rc.Ready) {
 		// The RepoCloner encountered an error. Return that error and remove it from store so that a fresh attempt can be made
@@ -101,7 +100,7 @@ func (rs *RepoStore) Get(ref *RepoRef) (*Repo, error) {
 			return nil, rc.Error
 			delete(rs.repositories, ref.URL)
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 	return rc.Repo, nil
 }
