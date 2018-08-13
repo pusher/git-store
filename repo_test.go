@@ -15,8 +15,8 @@ package gitstore
 
 import (
 	"errors"
-	"time"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -30,8 +30,8 @@ func TestAsyncCheckout(t *testing.T) {
 	rs := NewRepoStore(client)
 
 	rc, err := rs.GetAsync(&RepoRef{
-                URL: "https://github.com/git-fixtures/basic",
-        })
+		URL: "https://github.com/git-fixtures/basic",
+	})
 	assert.Equal(t, nil, err, "Should be able to start repo clone without error")
 	if rc == nil {
 		t.Log("Returned Cloner should not be nil")
@@ -39,15 +39,14 @@ func TestAsyncCheckout(t *testing.T) {
 	}
 	assert.Equal(t, false, rc.Ready, "Cloner should not be ready at start")
 
-
 	g.Eventually(
-		func() error { if (!rc.Ready) {
-			return errors.New("Not Ready")
-			} else {
-			return nil
+		func() error {
+			if !rc.Ready {
+				return errors.New("Not Ready")
 			}
+			return nil
 		}, 5*time.Second).
-	Should(Succeed())
+		Should(Succeed())
 
 	repo := rc.Repo
 	err = repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")

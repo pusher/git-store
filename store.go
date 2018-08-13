@@ -56,17 +56,16 @@ func (rs *RepoStore) GetAsync(ref *RepoRef) (*RepoCloner, error) {
 		return nil, fmt.Errorf("unable to construct repository authentication: %v", err)
 	}
 
-	var rc *RepoCloner
-        if rc, ok := rs.repositories[ref.URL]; ok {
-                rc.Repo.auth = auth
-                glog.V(2).Infof("Reusing repository for %s", ref.URL)
+	if rc, ok := rs.repositories[ref.URL]; ok {
+		rc.Repo.auth = auth
+		glog.V(2).Infof("Reusing repository for %s", ref.URL)
 		return rc, nil
-        }
-	rc = &RepoCloner{
+	}
+	rc := &RepoCloner{
 		RepoRef: ref,
-	};
+	}
 	rs.repositories[ref.URL] = rc
-	rc.Clone(auth);
+	rc.Clone(auth)
 	return rc, nil
 }
 
@@ -90,15 +89,15 @@ func (rs *RepoStore) Get(ref *RepoRef) (*Repo, error) {
 	} else {
 		glog.V(2).Infof("Cloning repository for %s", ref.URL)
 		rc, err = rs.GetAsync(ref)
-		if (err != nil) {
+		if err != nil {
 			return nil, err
 		}
 	}
-	for (!rc.Ready) {
+	for !rc.Ready {
 		// The RepoCloner encountered an error. Return that error and remove it from store so that a fresh attempt can be made
-		if (rc.Error != nil) {
-			return nil, rc.Error
+		if rc.Error != nil {
 			delete(rs.repositories, ref.URL)
+			return nil, rc.Error
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
