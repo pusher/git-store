@@ -46,20 +46,20 @@ func NewRepoStore(client kubernetes.Interface) *RepoStore {
 // GetAsync returns an asyncRepoCloner that will retrieve a Repo in the background
 func (rs *RepoStore) GetAsync(ref *RepoRef) (*AsyncRepoCloner, <-chan struct{}, error) {
 	err := ref.Validate()
-	c := make(chan struct{})
-	close(c)
 	if err != nil {
-		return nil, c, fmt.Errorf("invalid reposoitory reference: %v", err)
+		return nil, nil, fmt.Errorf("invalid reposoitory reference: %v", err)
 	}
 
 	auth, err := rs.constructAuthMethod(ref)
 	if err != nil {
-		return nil, c, fmt.Errorf("unable to construct repository authentication: %v", err)
+		return nil, nil, fmt.Errorf("unable to construct repository authentication: %v", err)
 	}
 
 	if rc, ok := rs.repositories[ref.URL]; ok {
 		rc.Repo.auth = auth
 		glog.V(2).Infof("Reusing repository for %s", ref.URL)
+		c := make(chan struct{})
+		close(c)
 		return rc, c, nil
 	}
 	rc := &AsyncRepoCloner{
@@ -77,6 +77,7 @@ func (rs *RepoStore) Get(ref *RepoRef) (*Repo, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	select {
 	case <-done:
 		if rc.Error != nil {
