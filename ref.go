@@ -63,7 +63,10 @@ func (r *RepoRef) Validate() error {
 	r.user = user
 	r.pass = pass
 
-	valid, err = validateAuthCredentials(r)
+	err = validateAuthCredentials(r)
+	if err != nil {
+		return fmt.Errorf("invalid auth credentials: %v", err)
+	}
 	return nil
 }
 
@@ -153,12 +156,12 @@ func parseUserPassFromMatches(matches []string) (string, string) {
 
 // validateAuthCredentials checks that the authentication configuration for the
 // store is correct
-func validateAuthCredentials(ref *RepoRef) (bool, error) {
+func validateAuthCredentials(ref *RepoRef) error {
 	if (ref.SecretName == "") != (ref.SecretNamespace == "") {
-		return false, fmt.Errorf("SecretName and SecretNamespace must both be set or both be empty")
+		return fmt.Errorf("SecretName and SecretNamespace must both be set or both be empty")
 	}
 	if ref.PrivateKey != nil && ref.SecretName != "" {
-		return false, fmt.Errorf("PrivateKey and SecretName are mutually exclusive")
+		return fmt.Errorf("PrivateKey and SecretName are mutually exclusive")
 	}
-	return true, nil
+	return nil
 }
