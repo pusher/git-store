@@ -14,7 +14,6 @@ limitations under the License.
 package gitstore
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -29,7 +28,7 @@ func TestAsyncCheckout(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	rs := NewRepoStore(client)
 
-	rc, err := rs.GetAsync(&RepoRef{
+	rc, done, err := rs.GetAsync(&RepoRef{
 		URL: "https://github.com/git-fixtures/basic",
 	})
 	assert.Equal(t, nil, err, "Should be able to start repo clone without error")
@@ -39,14 +38,7 @@ func TestAsyncCheckout(t *testing.T) {
 	}
 	assert.Equal(t, false, rc.Ready, "Cloner should not be ready at start")
 
-	g.Eventually(
-		func() error {
-			if !rc.Ready {
-				return errors.New("Not Ready")
-			}
-			return nil
-		}, 5*time.Second).
-		Should(Succeed())
+	g.Eventually(done, 5*time.Second).Should(BeClosed())
 
 	repo := rc.Repo
 	err = repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")

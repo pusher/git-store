@@ -8,8 +8,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
-// RepoCloner represents an asynchronous repository cloner
-type RepoCloner struct {
+// AsyncRepoCloner represents an asynchronous repository cloner
+type AsyncRepoCloner struct {
 	Ready   bool
 	RepoRef *RepoRef
 	Repo    *Repo
@@ -18,8 +18,10 @@ type RepoCloner struct {
 
 // Clone starts an asynchronous clone of the requested repository and sets
 // Ready to true when the repository is cloned successfully
-func (rc *RepoCloner) Clone(auth transport.AuthMethod) {
+func (rc *AsyncRepoCloner) Clone(auth transport.AuthMethod) <-chan struct{} {
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		fs := memfs.New()
 		storer := memory.NewStorage()
 		repository, err := git.Clone(storer, fs, &git.CloneOptions{
@@ -37,4 +39,5 @@ func (rc *RepoCloner) Clone(auth transport.AuthMethod) {
 			rc.Ready = true
 		}
 	}()
+	return done
 }
