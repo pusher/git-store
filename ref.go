@@ -40,6 +40,7 @@ type RepoRef struct {
 	urlType         urlType
 	SecretName      string
 	SecretNamespace string
+	PrivateKey      []byte
 }
 
 // Validate will parse input URL and update private fields of the reference
@@ -61,6 +62,11 @@ func (r *RepoRef) Validate() error {
 	r.urlType = repoType
 	r.user = user
 	r.pass = pass
+
+	err = validateAuthCredentials(r)
+	if err != nil {
+		return fmt.Errorf("invalid auth credentials: %v", err)
+	}
 	return nil
 }
 
@@ -146,4 +152,16 @@ func parseUserPassFromMatches(matches []string) (string, string) {
 		return split[0], split[1]
 	}
 	return userPass, ""
+}
+
+// validateAuthCredentials checks that the authentication configuration for the
+// store is correct
+func validateAuthCredentials(ref *RepoRef) error {
+	if (ref.SecretName == "") != (ref.SecretNamespace == "") {
+		return fmt.Errorf("SecretName and SecretNamespace must both be set or both be empty")
+	}
+	if ref.PrivateKey != nil && ref.SecretName != "" {
+		return fmt.Errorf("PrivateKey and SecretName are mutually exclusive")
+	}
+	return nil
 }

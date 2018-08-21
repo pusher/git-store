@@ -106,6 +106,10 @@ func (rs *RepoStore) constructSSHAuthMethod(ref *RepoRef) (transport.AuthMethod,
 		}
 	}
 
+	if ref.PrivateKey != nil {
+		key = ref.PrivateKey
+	}
+
 	auth, err := transportSSH.NewPublicKeys(ref.user, key, ref.pass)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse private key: %v", err)
