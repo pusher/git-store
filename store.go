@@ -19,11 +19,8 @@ import (
 
 	"github.com/golang/glog"
 	"golang.org/x/crypto/ssh"
-	"gopkg.in/src-d/go-billy.v4/memfs"
-	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	transportSSH "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-	"gopkg.in/src-d/go-git.v4/storage/memory"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -34,55 +31,61 @@ var (
 
 // RepoStore holds git repositories for use by the controller
 type RepoStore struct {
-	repositories map[string]*Repo
+	repositories map[string]*AsyncRepoCloner
 	client       kubernetes.Interface
 }
 
 // NewRepoStore initializes a new RepoStore
 func NewRepoStore(client kubernetes.Interface) *RepoStore {
 	return &RepoStore{
-		repositories: make(map[string]*Repo),
+		repositories: make(map[string]*AsyncRepoCloner),
 		client:       client,
 	}
 }
 
-// Get retrieves a Repo from the RepoStore
-func (rs *RepoStore) Get(ref *RepoRef) (*Repo, error) {
+// GetAsync returns an asyncRepoCloner that will retrieve a Repo in the background
+func (rs *RepoStore) GetAsync(ref *RepoRef) (*AsyncRepoCloner, <-chan struct{}, error) {
 	err := ref.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("invalid reposoitory reference: %v", err)
+		return nil, nil, fmt.Errorf("invalid reposoitory reference: %v", err)
 	}
 
 	auth, err := rs.constructAuthMethod(ref)
 	if err != nil {
-		return nil, fmt.Errorf("unable to construct repository authentication: %v", err)
+		return nil, nil, fmt.Errorf("unable to construct repository authentication: %v", err)
 	}
 
-	if r, ok := rs.repositories[ref.URL]; ok {
-		r.auth = auth
+	if rc, ok := rs.repositories[ref.URL]; ok {
+		rc.Repo.auth = auth
 		glog.V(2).Infof("Reusing repository for %s", ref.URL)
-		return r, nil
+		c := make(chan struct{})
+		close(c)
+		return rc, c, nil
 	}
+	rc := &AsyncRepoCloner{
+		RepoRef: ref,
+	}
+	rs.repositories[ref.URL] = rc
+	done := rc.Clone(auth)
+	return rc, done, nil
+}
 
+// Get retrieves a Repo from the RepoStore
+func (rs *RepoStore) Get(ref *RepoRef) (*Repo, error) {
 	glog.V(2).Infof("Cloning repository for %s", ref.URL)
-	fs := memfs.New()
-	storer := memory.NewStorage()
-	repository, err := git.Clone(storer, fs, &git.CloneOptions{
-		URL:  ref.URL,
-		Auth: auth,
-	})
+	rc, done, err := rs.GetAsync(ref)
 	if err != nil {
-		return nil, fmt.Errorf("unable to clone repository: %v", err)
-	}
-	repo := &Repo{
-		auth:       auth,
-		repository: repository,
+		return nil, err
 	}
 
-	// Store repo for reuse
-	rs.repositories[ref.URL] = repo
-
-	return repo, nil
+	select {
+	case <-done:
+		if rc.Error != nil {
+			delete(rs.repositories, ref.URL)
+			return nil, rc.Error
+		}
+		return rc.Repo, nil
+	}
 }
 
 func (rs *RepoStore) constructAuthMethod(ref *RepoRef) (transport.AuthMethod, error) {

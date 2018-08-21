@@ -15,10 +15,35 @@ package gitstore
 
 import (
 	"testing"
+	"time"
+
+	. "github.com/onsi/gomega"
 
 	"github.com/bmizerany/assert"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+func TestAsyncCheckout(t *testing.T) {
+	g := NewGomegaWithT(t)
+	client := fake.NewSimpleClientset()
+	rs := NewRepoStore(client)
+
+	rc, done, err := rs.GetAsync(&RepoRef{
+		URL: "https://github.com/git-fixtures/basic",
+	})
+	assert.Equal(t, nil, err, "Should be able to start repo clone without error")
+	if rc == nil {
+		t.Log("Returned Cloner should not be nil")
+		t.FailNow()
+	}
+	assert.Equal(t, false, rc.Ready, "Cloner should not be ready at start")
+
+	g.Eventually(done, 5*time.Second).Should(BeClosed())
+
+	repo := rc.Repo
+	err = repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")
+	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
+}
 
 func TestCheckoutAndGetFile(t *testing.T) {
 	client := fake.NewSimpleClientset()
