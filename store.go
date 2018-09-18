@@ -21,7 +21,6 @@ import (
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	transportSSH "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -47,7 +46,7 @@ func NewRepoStore(client kubernetes.Interface) *RepoStore {
 func (rs *RepoStore) GetAsync(ref *RepoRef) (*AsyncRepoCloner, <-chan struct{}, error) {
 	err := ref.Validate()
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid reposoitory reference: %v", err)
+		return nil, nil, fmt.Errorf("invalid repository reference: %v", err)
 	}
 
 	auth, err := rs.constructAuthMethod(ref)
@@ -96,24 +95,12 @@ func (rs *RepoStore) constructAuthMethod(ref *RepoRef) (transport.AuthMethod, er
 }
 
 func (rs *RepoStore) constructSSHAuthMethod(ref *RepoRef) (transport.AuthMethod, error) {
-	var key []byte
-	if ref.SecretName != "" && ref.SecretNamespace != "" {
-		secret, err := rs.client.CoreV1().Secrets(ref.SecretNamespace).Get(ref.SecretName, metav1.GetOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("unable to fetch SSH secret from kubernetes: %v", err)
-		}
 
-		var ok bool
-		if key, ok = secret.Data["sshPrivateKey"]; !ok {
-			return nil, fmt.Errorf("invalid secret: Secret must have key `sshPrivateKey`")
-		}
+	if ref.PrivateKey == nil {
+		return nil, fmt.Errorf("private key is required if using ssh")
 	}
 
-	if ref.PrivateKey != nil {
-		key = ref.PrivateKey
-	}
-
-	auth, err := transportSSH.NewPublicKeys(ref.user, key, ref.pass)
+	auth, err := transportSSH.NewPublicKeys(ref.user, ref.PrivateKey, ref.pass)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse private key: %v", err)
 	}
