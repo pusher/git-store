@@ -20,8 +20,8 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
+	transportHTTP "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	transportSSH "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -31,14 +31,12 @@ var (
 // RepoStore holds git repositories for use by the controller
 type RepoStore struct {
 	repositories map[string]*AsyncRepoCloner
-	client       kubernetes.Interface
 }
 
 // NewRepoStore initializes a new RepoStore
-func NewRepoStore(client kubernetes.Interface) *RepoStore {
+func NewRepoStore() *RepoStore {
 	return &RepoStore{
 		repositories: make(map[string]*AsyncRepoCloner),
-		client:       client,
 	}
 }
 
@@ -90,17 +88,14 @@ func (rs *RepoStore) Get(ref *RepoRef) (*Repo, error) {
 func (rs *RepoStore) constructAuthMethod(ref *RepoRef) (transport.AuthMethod, error) {
 	if ref.urlType == sshURL {
 		return rs.constructSSHAuthMethod(ref)
+	} else if ref.urlType == httpURL {
+		return rs.constructHTTPAuthMethod(ref)
 	}
 	return nil, nil
 }
 
 func (rs *RepoStore) constructSSHAuthMethod(ref *RepoRef) (transport.AuthMethod, error) {
-
-	if ref.PrivateKey == nil {
-		return nil, fmt.Errorf("private key is required if using ssh")
-	}
-
-	auth, err := transportSSH.NewPublicKeys(ref.user, ref.PrivateKey, ref.pass)
+	auth, err := transportSSH.NewPublicKeys(ref.User, ref.PrivateKey, ref.Pass)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse private key: %v", err)
 	}
@@ -109,5 +104,14 @@ func (rs *RepoStore) constructSSHAuthMethod(ref *RepoRef) (transport.AuthMethod,
 	if *insecureIgnoreHostKey {
 		auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 	}
+	return auth, nil
+}
+
+func (rs *RepoStore) constructHTTPAuthMethod(ref *RepoRef) (transport.AuthMethod, error) {
+	auth := &transportHTTP.BasicAuth{
+		Username: ref.User,
+		Password: ref.Pass,
+	}
+
 	return auth, nil
 }
