@@ -1,5 +1,5 @@
 box:
-  id: golang:1.9
+  id: golang:1.10
 
 dep-install:
   steps:
@@ -36,12 +36,17 @@ lint:
        --enable=deadcode \
        --enable=gofmt \
        --enable=goimports \
-       --tests ./...
+       --tests ./... \
+       --deadline=60s
 
 test:
   steps:
   - wercker/setup-go-workspace:
       package-dir: github.com/pusher/git-store
   - script:
-      name: go test
-      code: go test
+    name: Install Ginkgo CLI
+    code: |
+      go get -u github.com/onsi/ginkgo/ginkgo
+  - script:
+      name: ginkgo
+      code: ginkgo -v -race -randomizeAllSpecs ./...

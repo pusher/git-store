@@ -14,33 +14,45 @@ limitations under the License.
 package gitstore
 
 import (
-	"testing"
-
-	"github.com/bmizerany/assert"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestGet(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	rs := NewRepoStore(client)
+var _ = Describe("GitStore", func() {
 
-	// Clone a test repo
-	repo, err := rs.Get(&RepoRef{
-		URL: "https://github.com/git-fixtures/basic",
+	Context("When able to clone repo without error", func() {
+		var client kubernetes.Interface
+		var rs *RepoStore
+		var repo *Repo
+
+		BeforeEach(func() {
+			client = fake.NewSimpleClientset()
+			rs = NewRepoStore(client)
+			var err error
+			repo, err = rs.Get(&RepoRef{
+				URL: repositoryURL,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			err = repo.Checkout("master")
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("Should set the origin remote correctly", func() {
+			origin, err := repo.repository.Remote("origin")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(origin.Config().Name).To(Equal("origin"))
+		})
+
+		It("Should be able to checkout the first commit from the repo", func() {
+			err := repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("Should be able to checkout the master branch from the repo", func() {
+			err := repo.Checkout("master")
+			Expect(err).ToNot(HaveOccurred())
+		})
 	})
-	assert.Equal(t, nil, err, "Should be able to clone repo without error")
-
-	// Check the origin remote was set correctly
-	origin, err := repo.repository.Remote("origin")
-	assert.Equal(t, nil, err, "Should be able to get origin remote without error")
-	assert.Equal(t, "origin", origin.Config().Name, "origin remote name not as expected")
-	assert.Equal(t, []string{"https://github.com/git-fixtures/basic"}, origin.Config().URLs, "origin remote URLs not as expected")
-
-	// Check out the first commit from the REPO
-	err = repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")
-	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
-
-	// Check out the master branch from the REPO
-	err = repo.Checkout("master")
-	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
-}
+})

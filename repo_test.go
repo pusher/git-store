@@ -1,154 +1,142 @@
-/*
-Copyright 2018 Pusher Ltd.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package gitstore
 
 import (
-	"testing"
+	"fmt"
 	"time"
 
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	"github.com/bmizerany/assert"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestAsyncCheckout(t *testing.T) {
-	g := NewGomegaWithT(t)
-	client := fake.NewSimpleClientset()
-	rs := NewRepoStore(client)
+var expectedFoo = `package main
 
-	rc, done, err := rs.GetAsync(&RepoRef{
-		URL: "https://github.com/git-fixtures/basic",
-	})
-	assert.Equal(t, nil, err, "Should be able to start repo clone without error")
-	if rc == nil {
-		t.Log("Returned Cloner should not be nil")
-		t.FailNow()
-	}
-	assert.Equal(t, false, rc.Ready, "Cloner should not be ready at start")
+import "fmt"
 
-	g.Eventually(done, 5*time.Second).Should(BeClosed())
-
-	repo := rc.Repo
-	err = repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")
-	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
+func main() {
+	fmt.Println("Hello, playground")
 }
+`
 
-func TestCheckoutAndGetFile(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	rs := NewRepoStore(client)
+var _ = Describe("GitStore", func() {
 
-	repo, err := rs.Get(&RepoRef{
-		URL: "https://github.com/git-fixtures/basic",
-	})
-	assert.Equal(t, nil, err, "Should be able to clone repo without error")
+	Context("When the repository is cloned asynchronously", func() {
+		var client kubernetes.Interface
+		var rs *RepoStore
+		var rc *AsyncRepoCloner
+		var done <-chan struct{}
 
-	// Check out the first commit from the REPO
-	err = repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")
-	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
-
-	// Read the LICENSE file fro the first commit
-	license, err := repo.GetFile("LICENSE")
-	assert.Equal(t, nil, err, "Should be able to read LICENSE file without error")
-	assert.NotEqual(t, nil, license, "LICENSE file should be non-empty")
-
-	// Try to read CHANGLOG (which doesn't exist)
-	changelog, err := repo.GetFile("CHANGELOG")
-	assert.NotEqual(t, nil, err, "Should not be able to read CHANGELOG, file does not exist")
-	assert.NotEqual(t, nil, changelog, "CHANGELOG file should be empty")
-
-	// Check out the second commit from the REPO
-	err = repo.Checkout("b8e471f58bcbca63b07bda20e428190409c2db47")
-	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
-
-	// Try to read CHANGLOG (which does now exist)
-	// Read the CHANGELOG file from the first commit
-	changelog, err = repo.GetFile("CHANGELOG")
-	assert.Equal(t, nil, err, "Should be able to fetch CHANGELOG file without error")
-	assert.Equal(t, "Initial changelog\n", changelog.Contents(), "CHANGELOG file should read `Initial changelog\\n`")
-}
-
-func TestGetAllFiles(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	rs := NewRepoStore(client)
-
-	repo, err := rs.Get(&RepoRef{
-		URL: "https://github.com/git-fixtures/basic",
-	})
-	assert.Equal(t, nil, err, "Should be able to clone repo without error")
-
-	// Check out the 8th commit from the REPO
-	err = repo.Checkout("6ecf0ef2c2dffb796033e5a02219af86ec6584e5")
-	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
-
-	files, err := repo.GetAllFiles("")
-	assert.Equal(t, nil, err, "Should be able to read all files without error")
-	assert.Equal(t, 9, len(files), "Should be 9 files in the repository")
-
-	// Read the CHANGELOG file
-	changelog, ok := files["CHANGELOG"]
-	assert.Equal(t, true, ok, "Should be able to fetch CHANGELOG file from map")
-	assert.Equal(t, "Initial changelog\n", changelog.Contents(), "CHANGELOG file should read `Initial changelog\\n`")
-
-	// Read the vendor/foo.go file
-	expectedFoo := "package main\n\nimport \"fmt\"\n\nfunc main() {\n	fmt.Println(\"Hello, playground\")\n}\n"
-	foo, ok := files["vendor/foo.go"]
-	assert.Equal(t, true, ok, "Should be able to read `vendor/foo.go` file from map")
-	assert.Equal(t, expectedFoo, foo.Contents(), "`vendor/foo.go` does not have expected content")
-
-}
-
-func TestGetAllFilesSubPath(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	rs := NewRepoStore(client)
-
-	repo, err := rs.Get(&RepoRef{
-		URL: "https://github.com/git-fixtures/basic",
-	})
-	assert.Equal(t, nil, err, "Should be able to clone repo without error")
-
-	// Check out the 8th commit from the REPO
-	err = repo.Checkout("6ecf0ef2c2dffb796033e5a02219af86ec6584e5")
-	assert.Equal(t, nil, err, "Should be able to checkout commit ref without error")
-
-	subPathTests := []struct {
-		subPath string
-		count   int
-	}{
-		{"", 9},
-		{"**/*.go", 2},
-		{"**/*.json", 2},
-		{"json/*", 2},
-		{"vendor/*", 1},
-	}
-
-	for _, test := range subPathTests {
-		t.Run(test.subPath, func(t *testing.T) {
-			files, getErr := repo.GetAllFiles(test.subPath)
-			assert.Equal(t, nil, getErr, "Should be able to read all files without error")
-			assert.Equal(t, test.count, len(files), "Should be ", test.count, " files in the subpath")
+		BeforeEach(func() {
+			client = fake.NewSimpleClientset()
+			rs = NewRepoStore(client)
+			var err error
+			rc, done, err = rs.GetAsync(&RepoRef{
+				URL: repositoryURL,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(done, 5*time.Second).Should(BeClosed())
+			Expect(rc.Ready).To(BeTrue())
+			err = rc.Repo.Checkout("master")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(rc).ToNot(BeNil())
 		})
-	}
 
-	files, err := repo.GetAllFiles("vendor/*")
-	assert.Equal(t, nil, err, "Should be able to read all files without error")
-	assert.Equal(t, 1, len(files), "Should be 1 files in the subpath")
+		It("Should checkout the commit", func() {
+			err := rc.Repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")
+			Expect(err).ToNot(HaveOccurred())
+		})
+	})
 
-	// Read the vendor/foo.go file
-	expectedFoo := "package main\n\nimport \"fmt\"\n\nfunc main() {\n	fmt.Println(\"Hello, playground\")\n}\n"
-	foo, ok := files["vendor/foo.go"]
-	assert.Equal(t, true, ok, "Should be able to read `vendor/foo.go` file from map")
-	assert.Equal(t, expectedFoo, foo.Contents(), "`vendor/foo.go` does not have expected content")
+	Context("When the git repository is cloned", func() {
+		var client kubernetes.Interface
+		var rs *RepoStore
+		var repo *Repo
 
-}
+		BeforeEach(func() {
+			client = fake.NewSimpleClientset()
+			rs = NewRepoStore(client)
+			var err error
+			repo, err = rs.Get(&RepoRef{
+				URL: repositoryURL,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			err = repo.Checkout("master")
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("Should be able to count all files without error.", func() {
+			files, err := repo.GetAllFiles("")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(files).To(HaveLen(9))
+		})
+
+		It("Should be able to checkout the second commit ref without error", func() {
+			err := repo.Checkout("b8e471f58bcbca63b07bda20e428190409c2db47")
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("Should be able to fetch CHANGELOG file from map", func() {
+			files, err := repo.GetAllFiles("")
+			Expect(err).ToNot(HaveOccurred())
+			changelog, ok := files["CHANGELOG"]
+			Expect(ok).To(BeTrue())
+			Expect(changelog.Contents()).To(Equal("Initial changelog\n"))
+		})
+
+		Context("and the first commit is checked out", func() {
+			BeforeEach(func() {
+				err := repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("Should be able to read the license file", func() {
+				license, err := repo.GetFile("LICENSE")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(license).ToNot(BeNil())
+			})
+
+			It("Should not be able to read CHANGELOG file (does not exist)", func() {
+				changelog, err := repo.GetFile("CHANGELOG")
+				Expect(err).To(HaveOccurred())
+				Expect(changelog).To(BeNil())
+			})
+		})
+
+		Context("and the eighth commit is checkout out", func() {
+			BeforeEach(func() {
+				err := repo.Checkout("6ecf0ef2c2dffb796033e5a02219af86ec6584e5")
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("Should be able to read CHANGELOG file.", func() {
+				changelog, err := repo.GetFile("CHANGELOG")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(changelog).ToNot(BeNil())
+			})
+
+			It("Should be able to read the vendor/foo.go file", func() {
+				files, err := repo.GetAllFiles("")
+				Expect(err).ToNot(HaveOccurred())
+				foo, ok := files["vendor/foo.go"]
+				Expect(ok).To(BeTrue())
+				Expect(foo.Contents()).To(Equal(expectedFoo))
+			})
+
+			var findsFiles = func(path string, count int) {
+				It(fmt.Sprintf("Finds %d files inside path %s", count, path), func() {
+					files, err := repo.GetAllFiles(path)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(files).To(HaveLen(count))
+				})
+			}
+
+			findsFiles("", 9)
+			findsFiles("**/*.go", 2)
+			findsFiles("**/*.json", 2)
+			findsFiles("json/*", 2)
+			findsFiles("vendor/*", 1)
+		})
+
+	})
+})
