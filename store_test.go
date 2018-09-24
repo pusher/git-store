@@ -16,20 +16,16 @@ package gitstore
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
 var _ = Describe("GitStore", func() {
 
 	Context("When able to clone repo without error", func() {
-		var client kubernetes.Interface
 		var rs *RepoStore
 		var repo *Repo
 
 		BeforeEach(func() {
-			client = fake.NewSimpleClientset()
-			rs = NewRepoStore(client)
+			rs = NewRepoStore()
 			var err error
 			repo, err = rs.Get(&RepoRef{
 				URL: repositoryURL,

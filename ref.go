@@ -34,13 +34,11 @@ const gitRegex = "((git|ssh|file|rsync|http(s)?)|((\\w+[\\:\\w]+?@)?[\\w\\.]+))(
 
 // RepoRef contains information required to construct a Git Repository
 type RepoRef struct {
-	URL             string
-	user            string
-	pass            string
-	urlType         urlType
-	SecretName      string
-	SecretNamespace string
-	PrivateKey      []byte
+	URL        string
+	User       string
+	Pass       string
+	urlType    urlType
+	PrivateKey []byte
 }
 
 // Validate will parse input URL and update private fields of the reference
@@ -60,9 +58,12 @@ func (r *RepoRef) Validate() error {
 		return fmt.Errorf("unable to determine repository type: %v", err)
 	}
 	r.urlType = repoType
-	r.user = user
-	r.pass = pass
-
+	if r.User == "" {
+		r.User = user
+	}
+	if r.Pass == "" {
+		r.Pass = pass
+	}
 	err = validateAuthCredentials(r)
 	if err != nil {
 		return fmt.Errorf("invalid auth credentials: %v", err)
@@ -157,11 +158,11 @@ func parseUserPassFromMatches(matches []string) (string, string) {
 // validateAuthCredentials checks that the authentication configuration for the
 // store is correct
 func validateAuthCredentials(ref *RepoRef) error {
-	if (ref.SecretName == "") != (ref.SecretNamespace == "") {
-		return fmt.Errorf("SecretName and SecretNamespace must both be set or both be empty")
+	if ref.urlType == sshURL && ref.PrivateKey == nil {
+		return fmt.Errorf("PrivateKey is required for ssh auth")
 	}
-	if ref.PrivateKey != nil && ref.SecretName != "" {
-		return fmt.Errorf("PrivateKey and SecretName are mutually exclusive")
+	if ref.urlType == httpURL && ((ref.User == "") != (ref.Pass == "")) {
+		return fmt.Errorf("For HTTP, both username and password are required, or neither")
 	}
 	return nil
 }

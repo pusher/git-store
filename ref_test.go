@@ -16,6 +16,7 @@ package gitstore
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
 )
 
 var _ = Describe("GitStore", func() {
@@ -58,5 +59,43 @@ var _ = Describe("GitStore", func() {
 		validateOutput("http://user:pass@host.xz/path/to/repo.git/", "user", "pass", httpURL)
 		validateOutput("file:///path/to/repo.git/", "", "", fileURL)
 		validateOutput("file://~/path/to/repo.git/", "", "", fileURL)
+	})
+
+	Context("When validating a repository", func() {
+		Context("with basic auth", func() {
+			var validateOutput = func(url, user, pass string, matcher types.GomegaMatcher) {
+				r := &RepoRef{
+					URL:  url,
+					User: user,
+					Pass: pass,
+				}
+				Expect(r.Validate()).To(matcher)
+			}
+
+			It("Should allow both username and password set", func() {
+				validateOutput("http://example.com", "foo", "bar", BeNil())
+			})
+
+			It("Should disallow user but no password set", func() {
+				validateOutput("http://example.com", "foo", "", Not(BeNil()))
+			})
+
+			It("Should disallow password but no user set", func() {
+				validateOutput("http://example.com", "", "bar", Not(BeNil()))
+			})
+
+			It("Should allow no credentials set", func() {
+				validateOutput("http://example.com", "", "", BeNil())
+			})
+		})
+
+		Context("with ssh auth", func() {
+			It("Should disallow an empty private key", func() {
+				r := &RepoRef{
+					URL: "ssh://git@example.com",
+				}
+				Expect(r.Validate()).NotTo(BeNil())
+			})
+		})
 	})
 })

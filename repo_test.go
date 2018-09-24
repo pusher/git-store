@@ -6,8 +6,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
 var expectedFoo = `package main
@@ -22,14 +20,12 @@ func main() {
 var _ = Describe("GitStore", func() {
 
 	Context("When the repository is cloned asynchronously", func() {
-		var client kubernetes.Interface
 		var rs *RepoStore
 		var rc *AsyncRepoCloner
 		var done <-chan struct{}
 
 		BeforeEach(func() {
-			client = fake.NewSimpleClientset()
-			rs = NewRepoStore(client)
+			rs = NewRepoStore()
 			var err error
 			rc, done, err = rs.GetAsync(&RepoRef{
 				URL: repositoryURL,
@@ -49,13 +45,11 @@ var _ = Describe("GitStore", func() {
 	})
 
 	Context("When the git repository is cloned", func() {
-		var client kubernetes.Interface
 		var rs *RepoStore
 		var repo *Repo
 
 		BeforeEach(func() {
-			client = fake.NewSimpleClientset()
-			rs = NewRepoStore(client)
+			rs = NewRepoStore()
 			var err error
 			repo, err = rs.Get(&RepoRef{
 				URL: repositoryURL,
