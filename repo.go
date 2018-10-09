@@ -233,6 +233,22 @@ func (r *Repo) getAllFiles() (map[string]*object.File, error) {
 	return files, nil
 }
 
+// LastUpdated returns the timestamp that the current checkoud out reference
+// was last updated
+func (r *Repo) LastUpdated() (time.Time, error) {
+	head, err := r.repository.Head()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("unable to fetch repository head: %v", err)
+	}
+
+	commit, err := r.repository.CommitObject(head.Hash())
+	if err != nil {
+		return time.Time{}, fmt.Errorf("unable to retrieve commit: %v", err)
+	}
+
+	return commit.Committer.When, nil
+}
+
 // Contents returns the content of a file
 func (f *File) Contents() string {
 	if f.file == nil {
