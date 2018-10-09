@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+declare script_dir work_dir fixtures_tgz
+
+script_dir="$(git rev-parse --show-toplevel)"
+work_dir="$(mktemp -d)"
+fixtures_tgz="$script_dir/fixtures/repo.tgz"
+
+if [[ -e $fixtures_tgz ]]; then
+  tar -zxf "$fixtures_tgz" -C "$work_dir" --strip-components 1
+fi
+
+pushd "$work_dir" > /dev/null
+cat <<-EOL
+************************************************************************
+* dropping you in a shell session in $work_dir
+* when you're done updating the repo exit the session with a zero exit
+* code (i.e. 'exit 0') to update the archive, or with a non-zero exit
+* code (i.e. 'exit 1') to discard your changes
+************************************************************************
+EOL
+if $SHELL; then
+  tar -zcvf "$fixtures_tgz" -C "$work_dir" .
+  echo "updated $fixtures_tgz"
+else
+  echo "non-zero exit status from $SHELL, not updating $fixtures_tgz"
+fi
+popd
+echo "removing $work_dir"
+rm -rf "$work_dir"
