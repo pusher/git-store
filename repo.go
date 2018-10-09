@@ -20,6 +20,7 @@ import (
 	"github.com/gobwas/glob"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 )
@@ -175,7 +176,7 @@ func (r *Repo) getFileLog(path string) (GitLog, error) {
 
 // GetAllFiles returns a map of Files.
 // Each file is keyed in the map by it's path within the repository
-func (r *Repo) GetAllFiles(subPath string) (map[string]*File, error) {
+func (r *Repo) GetAllFiles(subPath string, ignoreSymlinks bool) (map[string]*File, error) {
 	rawFiles, err := r.getAllFiles()
 	if err != nil {
 		return nil, fmt.Errorf("unable to read files from repository: %v", err)
@@ -193,6 +194,11 @@ func (r *Repo) GetAllFiles(subPath string) (map[string]*File, error) {
 	for path, file := range rawFiles {
 		// If subPath is set, skip the file if it doesn't match
 		if g != nil && !g.Match(path) {
+			continue
+		}
+
+		// If the file is a symlink, skip it
+		if ignoreSymlinks && file.Mode == filemode.Symlink {
 			continue
 		}
 
