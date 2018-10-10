@@ -95,6 +95,14 @@ var _ = Describe("GitStore", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(changelog).To(BeNil())
 			})
+
+			It("Should be able to get the LastUpdated timestamp", func() {
+				lastUpdated, err := repo.LastUpdated()
+				Expect(err).ToNot(HaveOccurred())
+				utcPlus2 := time.FixedZone("+0200", int(2*time.Hour.Seconds()))
+				expectedTime := time.Date(2015, time.March, 31, 13, 42, 21, 0, utcPlus2)
+				Expect(lastUpdated).To(BeTemporally("==", expectedTime))
+			})
 		})
 
 		Context("and the eighth commit is checkout out", func() {
@@ -115,6 +123,14 @@ var _ = Describe("GitStore", func() {
 				foo, ok := files["vendor/foo.go"]
 				Expect(ok).To(BeTrue())
 				Expect(foo.Contents()).To(Equal(expectedFoo))
+			})
+
+			It("Should be able to get the LastUpdated timestamp", func() {
+				lastUpdated, err := repo.LastUpdated()
+				Expect(err).ToNot(HaveOccurred())
+				utcPlus2 := time.FixedZone("+0200", int(2*time.Hour.Seconds()))
+				expectedTime := time.Date(2015, time.April, 5, 23, 30, 47, 0, utcPlus2)
+				Expect(lastUpdated).To(BeTemporally("==", expectedTime))
 			})
 
 			var findsFiles = func(path string, count int) {
