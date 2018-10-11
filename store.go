@@ -56,10 +56,19 @@ func (rs *RepoStore) GetAsync(ref *RepoRef) (*AsyncRepoCloner, <-chan struct{}, 
 	}
 
 	returnRC := func(rc *AsyncRepoCloner) (*AsyncRepoCloner, <-chan struct{}, error) {
-		rc.Repo.auth = auth
+		if rc.Repo != nil {
+			rc.Repo.auth = auth
+		}
 		glog.V(2).Infof("Reusing repository for %s", ref.URL)
 		c := make(chan struct{})
-		close(c)
+		go func() {
+			for {
+				if rc.Ready {
+					close(c)
+					return
+				}
+			}
+		}()
 		return rc, c, nil
 	}
 
