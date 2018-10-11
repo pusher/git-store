@@ -16,6 +16,7 @@ package gitstore
 import (
 	"flag"
 	"fmt"
+	"sync"
 
 	"github.com/golang/glog"
 	"golang.org/x/crypto/ssh"
@@ -31,12 +32,14 @@ var (
 // RepoStore holds git repositories for use by the controller
 type RepoStore struct {
 	repositories map[string]*AsyncRepoCloner
+	mutex        sync.RWMutex
 }
 
 // NewRepoStore initializes a new RepoStore
 func NewRepoStore() *RepoStore {
 	return &RepoStore{
 		repositories: make(map[string]*AsyncRepoCloner),
+		mutex:        sync.RWMutex{},
 	}
 }
 
@@ -52,16 +55,33 @@ func (rs *RepoStore) GetAsync(ref *RepoRef) (*AsyncRepoCloner, <-chan struct{}, 
 		return nil, nil, fmt.Errorf("unable to construct repository authentication: %v", err)
 	}
 
-	if rc, ok := rs.repositories[ref.URL]; ok {
+	returnRC := func(rc *AsyncRepoCloner) (*AsyncRepoCloner, <-chan struct{}, error) {
 		rc.Repo.auth = auth
 		glog.V(2).Infof("Reusing repository for %s", ref.URL)
 		c := make(chan struct{})
 		close(c)
 		return rc, c, nil
 	}
+
+	rs.mutex.RLock()
+	if rc, ok := rs.repositories[ref.URL]; ok {
+		rs.mutex.RUnlock()
+		return returnRC(rc)
+	}
+	// Switch from read lock to write lock
+	rs.mutex.RUnlock()
+	rs.mutex.Lock()
+	defer rs.mutex.Unlock()
+
+	// Double check no one else has updated this in the meantime
+	if rc, ok := rs.repositories[ref.URL]; ok {
+		return returnRC(rc)
+	}
+
 	rc := &AsyncRepoCloner{
 		RepoRef: ref,
 	}
+
 	rs.repositories[ref.URL] = rc
 	done := rc.Clone(auth)
 	return rc, done, nil
