@@ -1,6 +1,8 @@
 package gitstore
 
 import (
+	"sync"
+
 	git "gopkg.in/src-d/go-git.v4"
 
 	"gopkg.in/src-d/go-billy.v4/memfs"
@@ -14,6 +16,7 @@ type AsyncRepoCloner struct {
 	RepoRef *RepoRef
 	Repo    *Repo
 	Error   error
+	mutex   sync.Mutex
 }
 
 // Clone starts an asynchronous clone of the requested repository and sets
@@ -28,6 +31,7 @@ func (rc *AsyncRepoCloner) Clone(auth transport.AuthMethod) <-chan struct{} {
 			URL:  rc.RepoRef.URL,
 			Auth: auth,
 		})
+		rc.mutex.Lock()
 		if err != nil {
 			rc.Error = err
 		} else {
@@ -38,6 +42,7 @@ func (rc *AsyncRepoCloner) Clone(auth transport.AuthMethod) <-chan struct{} {
 			rc.Repo = repo
 			rc.Ready = true
 		}
+		rc.mutex.Unlock()
 	}()
 	return done
 }
