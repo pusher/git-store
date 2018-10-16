@@ -35,11 +35,7 @@ func (rc *AsyncRepoCloner) Clone(auth transport.AuthMethod) <-chan struct{} {
 		if err != nil {
 			rc.Error = err
 		} else {
-			repo := &Repo{
-				auth:       auth,
-				repository: repository,
-			}
-			rc.Repo = repo
+			rc.Repo = newRepo(repository, auth)
 			rc.Ready = true
 		}
 		rc.mutex.Unlock()

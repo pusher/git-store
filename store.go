@@ -56,11 +56,9 @@ func (rs *RepoStore) GetAsync(ref *RepoRef) (*AsyncRepoCloner, <-chan struct{}, 
 	}
 
 	returnRC := func(rc *AsyncRepoCloner) (*AsyncRepoCloner, <-chan struct{}, error) {
-		rc.mutex.Lock()
 		if rc.Repo != nil {
-			rc.Repo.auth = auth
+			rc.Repo.setAuth(auth)
 		}
-		rc.mutex.Unlock()
 
 		glog.V(2).Infof("Reusing repository for %s", ref.URL)
 		c := make(chan struct{})
