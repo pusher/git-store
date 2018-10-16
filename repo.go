@@ -15,6 +15,7 @@ package gitstore
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gobwas/glob"
@@ -29,6 +30,7 @@ import (
 type Repo struct {
 	auth       transport.AuthMethod
 	repository *git.Repository
+	mutex      sync.RWMutex
 }
 
 // File represents a file content and log pair from the repository
@@ -43,6 +45,22 @@ type GitLog struct {
 	Hash   plumbing.Hash
 	Author string
 	Text   string
+}
+
+// newRepo constructs a new Repo with all required fields set
+func newRepo(repo *git.Repository, auth transport.AuthMethod) *Repo {
+	return &Repo{
+		repository: repo,
+		auth:       auth,
+		mutex:      sync.RWMutex{},
+	}
+}
+
+// setAuth sets the repositories auth method
+func (r *Repo) setAuth(auth transport.AuthMethod) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	r.auth = auth
 }
 
 // Checkout performs a Git checkout of the repository at the given reference
@@ -63,15 +81,13 @@ func (r *Repo) Checkout(ref string) error {
 		ref = "refs/remotes/origin/master"
 	}
 
-	var hash *plumbing.Hash
-	hash, err = r.repository.ResolveRevision(plumbing.Revision(ref))
+	hash, err := r.parseReference(ref)
 	if err != nil {
-		hash, err = r.repository.ResolveRevision(plumbing.Revision(fmt.Sprintf("%s/%s", "refs/remotes/origin", ref)))
-		if err != nil {
-			return fmt.Errorf("unable to parse ref %s: %v", ref, err)
-		}
+		return fmt.Errorf("unable to parse ref %s: %v", ref, err)
 	}
 
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	//Perform checkout operation on worktree
 	err = workTree.Checkout(&git.CheckoutOptions{
 		Hash:  *hash,
@@ -83,19 +99,45 @@ func (r *Repo) Checkout(ref string) error {
 	return nil
 }
 
+// parseReference attempts to convert the git reference into a hash
+func (r *Repo) parseReference(ref string) (*plumbing.Hash, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	// attempt to parse ref as it is
+	hash, err := r.repository.ResolveRevision(plumbing.Revision(ref))
+	if err == nil {
+		// No error so return hash
+		return hash, nil
+	}
+	// attempt to pars ref prefixed by 'refs/remotes/origin'
+	hash, err = r.repository.ResolveRevision(plumbing.Revision(fmt.Sprintf("%s/%s", "refs/remotes/origin", ref)))
+	if err == nil {
+		// No error so return hash
+		return hash, nil
+	}
+	return nil, err
+}
+
 // Fetch performs a Git fetch of the repository
 func (r *Repo) Fetch() error {
 	// Perform a fetch on the repository
-	err := r.repository.Fetch(&git.FetchOptions{
-		Auth:  r.auth,
-		Force: true,
-		Tags:  git.AllTags,
-	})
+	err := r.fetch()
 	// Ignore "already-up-to-date" error
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return fmt.Errorf("unable to fetch repository: %v", err)
 	}
 	return nil
+}
+
+// fetch performs a fetch on the internal repository while under a lock
+func (r *Repo) fetch() error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	return r.repository.Fetch(&git.FetchOptions{
+		Auth:  r.auth,
+		Force: true,
+		Tags:  git.AllTags,
+	})
 }
 
 // GetFile returns the contents of a file from within the repository
@@ -118,12 +160,7 @@ func (r *Repo) GetFile(path string) (*File, error) {
 }
 
 func (r *Repo) getFile(path string) (*object.File, error) {
-	head, err := r.repository.Head()
-	if err != nil {
-		return nil, fmt.Errorf("unable to fetch HEAD: %v", err)
-	}
-
-	commit, err := r.repository.CommitObject(head.Hash())
+	commit, err := r.getHeadCommit()
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch HEAD commit: %v", err)
 	}
@@ -136,12 +173,7 @@ func (r *Repo) getFile(path string) (*object.File, error) {
 }
 
 func (r *Repo) getBlame(path string) (*git.BlameResult, error) {
-	head, err := r.repository.Head()
-	if err != nil {
-		return nil, fmt.Errorf("unable to fetch HEAD: %v", err)
-	}
-
-	commit, err := r.repository.CommitObject(head.Hash())
+	commit, err := r.getHeadCommit()
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch HEAD commit: %v", err)
 	}
@@ -215,12 +247,7 @@ func (r *Repo) GetAllFiles(subPath string, ignoreSymlinks bool) (map[string]*Fil
 }
 
 func (r *Repo) getAllFiles() (map[string]*object.File, error) {
-	head, err := r.repository.Head()
-	if err != nil {
-		return nil, fmt.Errorf("unable to fetch HEAD: %v", err)
-	}
-
-	commit, err := r.repository.CommitObject(head.Hash())
+	commit, err := r.getHeadCommit()
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch HEAD commit: %v", err)
 	}
@@ -242,17 +269,27 @@ func (r *Repo) getAllFiles() (map[string]*object.File, error) {
 // LastUpdated returns the timestamp that the current checkoud out reference
 // was last updated
 func (r *Repo) LastUpdated() (time.Time, error) {
+	commit, err := r.getHeadCommit()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("unable to fetch HEAD commit: %v", err)
+	}
+
+	return commit.Committer.When, nil
+}
+
+func (r *Repo) getHeadCommit() (*object.Commit, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	head, err := r.repository.Head()
 	if err != nil {
-		return time.Time{}, fmt.Errorf("unable to fetch repository head: %v", err)
+		return nil, fmt.Errorf("unable to fetch repository head: %v", err)
 	}
 
 	commit, err := r.repository.CommitObject(head.Hash())
 	if err != nil {
-		return time.Time{}, fmt.Errorf("unable to retrieve commit: %v", err)
+		return nil, fmt.Errorf("unable to retrieve commit: %v", err)
 	}
-
-	return commit.Committer.When, nil
+	return commit, nil
 }
 
 // Contents returns the content of a file
