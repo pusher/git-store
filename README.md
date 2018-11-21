@@ -23,7 +23,7 @@ globbedSubPath := strings.TrimPrefix(gt.Spec.SubPath, "/") + "{**/*,*}.{yaml,yml
 files, err := repo.GetAllFiles(globbedSubPath, true)
 
 for file := range files {
-	doStuffWith(file.Contents()
+	doStuffWith(file.Contents())
 }
 ```
 
