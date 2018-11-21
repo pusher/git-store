@@ -145,9 +145,7 @@ func (r *Repo) fetch() error {
 	})
 }
 
-/*
-GetFile returns a pointer to a File from the repository that can be used to read its contents.
-*/
+// GetFile returns a pointer to a File from the repository that can be used to read its contents.
 func (r *Repo) GetFile(path string) (*File, error) {
 	// Open file from repository
 	file, err := r.getFile(path)
