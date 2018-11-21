@@ -26,25 +26,31 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 )
 
-// Repo represents a git repository
+/*
+Repo represents a git repository.
+*/
 type Repo struct {
 	auth       transport.AuthMethod
 	repository *git.Repository
 	mutex      sync.RWMutex
 }
 
-// File represents a file content and log pair from the repository
+/*
+File represents a file within a git repository.
+*/
 type File struct {
+	Log  GitLog		// Log contians the git log information for this file at the current reference.
 	file *object.File
-	Log  GitLog
 }
 
-// GitLog contains information about a commit from the git repository log
+/*
+GitLog contains information about a commit from the git repository log.
+*/
 type GitLog struct {
-	Date   time.Time
-	Hash   plumbing.Hash
-	Author string
-	Text   string
+	Date   time.Time	// Date is the datetime of the commit this log corresponds to.
+	Hash   plumbing.Hash	// Hash contains the hash of the commit.
+	Author string		// Author is the author as stored in the commit.
+	Text   string		// Text is the commit message.
 }
 
 // newRepo constructs a new Repo with all required fields set
@@ -63,7 +69,11 @@ func (r *Repo) setAuth(auth transport.AuthMethod) {
 	r.auth = auth
 }
 
-// Checkout performs a Git checkout of the repository at the given reference
+/*
+Checkout performs a Git checkout of the repository at the provided reference.
+
+If the repository has not yet been cloned, this happens transparently before Checkout returns.
+*/
 func (r *Repo) Checkout(ref string) error {
 	err := r.Fetch()
 	if err != nil {
@@ -118,7 +128,12 @@ func (r *Repo) parseReference(ref string) (*plumbing.Hash, error) {
 	return nil, err
 }
 
-// Fetch performs a Git fetch of the repository
+/*
+Fetch performs a Git fetch of the repository.
+
+Note: While Fetch itself is thread-safe in that it ensures a previous Fetch() is completed before starting a new one,
+the Repo is not. If Fetch is called from two go routines, subsequent reads may be non-deterministic.
+*/
 func (r *Repo) Fetch() error {
 	// Perform a fetch on the repository
 	err := r.fetch()
@@ -140,7 +155,9 @@ func (r *Repo) fetch() error {
 	})
 }
 
-// GetFile returns the contents of a file from within the repository
+/*
+GetFile returns a pointer to a File from the repository that can be used to read its contents.
+*/
 func (r *Repo) GetFile(path string) (*File, error) {
 	// Open file from repository
 	file, err := r.getFile(path)
@@ -266,8 +283,9 @@ func (r *Repo) getAllFiles() (map[string]*object.File, error) {
 	return files, nil
 }
 
-// LastUpdated returns the timestamp that the current checkoud out reference
-// was last updated
+/*
+LastUpdated returns the timestamp that the currently checked out reference was last updated at.
+*/
 func (r *Repo) LastUpdated() (time.Time, error) {
 	commit, err := r.getHeadCommit()
 	if err != nil {
@@ -292,7 +310,12 @@ func (r *Repo) getHeadCommit() (*object.Commit, error) {
 	return commit, nil
 }
 
-// Contents returns the content of a file
+/*
+Contents returns the content of the File as a string.
+
+Note: Contents() does not verify file type and will return binary files as a (probably useless) string representation.
+It reads the contents in memory, so may suffer from problems if the file size is too large.
+*/
 func (f *File) Contents() string {
 	if f.file == nil {
 		return ""
