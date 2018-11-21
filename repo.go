@@ -65,7 +65,7 @@ func (r *Repo) setAuth(auth transport.AuthMethod) {
 
 // Checkout performs a Git checkout of the repository at the provided reference.
 //
-// If the repository has not yet been cloned, this happens transparently before Checkout returns.
+// Note: It is assumed that the repository has already been cloned prior to Checkout() being called.
 func (r *Repo) Checkout(ref string) error {
 	err := r.Fetch()
 	if err != nil {
