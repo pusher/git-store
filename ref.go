@@ -11,6 +11,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package gitstore provides an abstraction on top of Go Git for use with (primarily) Kubernetes Controllers.
+// It has basic caching capabilities and can handle multiple repositories at the same time.
+//
+// The primary purpose of GitStore is to give easy access to the files in the repository at a certain git reference.
+// To that end it checks out the code into a temporary in-memory filesystem.
 package gitstore
 
 import (
@@ -32,16 +37,17 @@ const (
 
 const gitRegex = "((git|ssh|file|rsync|http(s)?)|((\\w+[\\:\\w]+?@)?[\\w\\.]+))(:(//)?)(\\w+[\\:\\w]+?@)?([\\w\\.\\:/\\-~]+)(\\.git)?(/)?"
 
-// RepoRef contains information required to construct a Git Repository
+// RepoRef contains all information required to connect to a git repository
 type RepoRef struct {
-	URL        string
-	User       string
-	Pass       string
+	URL        string // URL where the repository is located
+	User       string // User is the username used for user/pass authentication
+	Pass       string // Pass is the password used for user/pass authentication
+	PrivateKey []byte // PrivateKey is the ssh key material used for SSH key-based authentication
 	urlType    urlType
-	PrivateKey []byte
 }
 
-// Validate will parse input URL and update private fields of the reference
+// Validate validates the repository url format.
+// If the url contains auth credentials and none are provided explicitly, the relevant fields of the RepoRef are filled.
 func (r *RepoRef) Validate() error {
 	// Does the URL pass basic validation
 	valid, err := validGitURL(r.URL)
