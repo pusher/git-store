@@ -18,7 +18,6 @@ func getFilesFromRepo(url string, privateKey []byte, gitReference string) ([]*gi
 	})
 
 	err = repo.Checkout(gitReference)
-	lastUpdated, err := repo.LastUpdated()
 
 	globbedSubPath := strings.TrimPrefix(gt.Spec.SubPath, "/") + "{**/*,*}.{yaml,yml,json}"
 	files, err := repo.GetAllFiles(globbedSubPath, true)
