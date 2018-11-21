@@ -11,13 +11,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/*
-Package gitstore provides an abstraction on top of Go Git for use with (primarily) Kubernetes Controllers.
-It has basic caching capabilities and can handle multiple repositories at the same time.
-
-The primary purpose of GitStore is to give easy access to the files in the repository at a certain git reference.
-To that end it checks out the code into a temporary in-memory filesystem.
-*/
+// Package gitstore provides an abstraction on top of Go Git for use with (primarily) Kubernetes Controllers.
+// It has basic caching capabilities and can handle multiple repositories at the same time.
+//
+// The primary purpose of GitStore is to give easy access to the files in the repository at a certain git reference.
+// To that end it checks out the code into a temporary in-memory filesystem.
 package gitstore
 
 import (
@@ -48,10 +46,8 @@ type RepoRef struct {
 	urlType    urlType
 }
 
-/*
-Validate validates the repository url format.
-If the url contains auth credentials and none are provided explicitly, the relevant fields of the RepoRef are filled.
-*/
+// Validate validates the repository url format.
+// If the url contains auth credentials and none are provided explicitly, the relevant fields of the RepoRef are filled.
 func (r *RepoRef) Validate() error {
 	// Does the URL pass basic validation
 	valid, err := validGitURL(r.URL)

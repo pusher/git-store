@@ -29,17 +29,13 @@ var (
 	insecureIgnoreHostKey = flag.Bool("inseucre-skip-host-key-verification", false, "disable host key verification for upstream SSH servers")
 )
 
-/*
-RepoStore manages a collection of git repositories.
-*/
+// RepoStore manages a collection of git repositories.
 type RepoStore struct {
 	repositories map[string]*AsyncRepoCloner
 	mutex        sync.RWMutex
 }
 
-/*
-NewRepoStore initializes a new RepoStore.
-*/
+// NewRepoStore initializes a new RepoStore.
 func NewRepoStore() *RepoStore {
 	return &RepoStore{
 		repositories: make(map[string]*AsyncRepoCloner),
@@ -47,9 +43,7 @@ func NewRepoStore() *RepoStore {
 	}
 }
 
-/*
-GetAsync returns an AsyncRepoCloner that will retrieve a Repo in the background according to the RepoRef provided.
-*/
+// GetAsync returns an AsyncRepoCloner that will retrieve a Repo in the background according to the RepoRef provided.
 func (rs *RepoStore) GetAsync(ref *RepoRef) (*AsyncRepoCloner, <-chan struct{}, error) {
 	err := ref.Validate()
 	if err != nil {
