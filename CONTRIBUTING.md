@@ -10,6 +10,10 @@ git clone git@github.com:<YOUR_FORK>/git-store pusher/git-store
 dep ensure # Installs dependencies to vendor folder.
 ```
 
+## Testing
+The existing tests rely on a static git repo stored in `/fixtures`.
+A script for adding / modifying this repo is provided in `/hack`.
+
 ## Pull Requests and Issues
 We track bugs and issues using Github .
 
