@@ -39,7 +39,7 @@ type Repo struct {
 File represents a file within a git repository.
 */
 type File struct {
-	Log  GitLog		// Log contians the git log information for this file at the current reference.
+	Log  GitLog // Log contians the git log information for this file at the current reference.
 	file *object.File
 }
 
@@ -47,10 +47,10 @@ type File struct {
 GitLog contains information about a commit from the git repository log.
 */
 type GitLog struct {
-	Date   time.Time	// Date is the datetime of the commit this log corresponds to.
-	Hash   plumbing.Hash	// Hash contains the hash of the commit.
-	Author string		// Author is the author as stored in the commit.
-	Text   string		// Text is the commit message.
+	Date   time.Time     // Date is the datetime of the commit this log corresponds to.
+	Hash   plumbing.Hash // Hash contains the hash of the commit.
+	Author string        // Author is the author as stored in the commit.
+	Text   string        // Text is the commit message.
 }
 
 // newRepo constructs a new Repo with all required fields set
