@@ -9,18 +9,26 @@ for cloning, fetching and checking out repository references and accessing file 
 To get a slice of all yaml and json file from a repository at a given reference:
 
 ```
-store := gitstore.newRepoStore()
+func getFilesFromRepo(url string, privateKey []byte, gitReference string) ([]*gitstore.File, error) {
+	store := gitstore.NewRepoStore()
 
-repo, err := store.Get(&gistore.RepoRef{
-	URL: 		url,
-	PrivateKey:	privateKey,
-})
+	repo, err := store.Get(&gistore.RepoRef{
+		URL: 		url,
+		PrivateKey:	privateKey,
+	})
 
-err = repo.Checkout(ref)
-lastUpdated, err := repo.LastUpdated()
+	err = repo.Checkout(gitReference)
+	lastUpdated, err := repo.LastUpdated()
 
-globbedSubPath := strings.TrimPrefix(gt.Spec.SubPath, "/") + "{**/*,*}.{yaml,yml,json}"
-files, err := repo.GetAllFiles(globbedSubPath, true)
+	globbedSubPath := strings.TrimPrefix(gt.Spec.SubPath, "/") + "{**/*,*}.{yaml,yml,json}"
+	files, err := repo.GetAllFiles(globbedSubPath, true)
+	return files, err
+}
+```
+
+Then, to work with these files:
+```
+files, err := getFilesFromRepo("git@github.com:/...", someKey, "master")
 
 for file := range files {
 	doStuffWith(file.Contents())
