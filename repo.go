@@ -185,7 +185,8 @@ func (r *Repo) getBlame(path string) (*git.BlameResult, error) {
 
 	blame, err := git.Blame(commit, path)
 	if err != nil {
-		return nil, fmt.Errorf("unable to fetch git blame: %v", err)
+		fmt.Printf("WARN: failed to fetch git blame: %v", err)
+		return &git.BlameResult{Lines: []*git.Line{}}, nil
 	}
 	return blame, nil
 }
