@@ -7,7 +7,7 @@ NC := \033[0m
 .NOTPARALLEL:
 
 .PHONY: all
-all: test
+all: distclean test
 
 .PHONY: distclean
 distclean:
