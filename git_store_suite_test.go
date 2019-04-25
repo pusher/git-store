@@ -11,6 +11,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/pusher/git-store/test"
 )
 
 var repositoryPath string
@@ -19,7 +20,7 @@ var fixturesRepoPath, _ = filepath.Abs("./fixtures/repo.tgz")
 
 func TestGitStore(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "GitStore Suite")
+	RunSpecsWithDefaultAndCustomReporters(t, "GitStore Suite", test.Reporters())
 }
 
 func setupRepository() string {
