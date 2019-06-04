@@ -297,6 +297,33 @@ func (r *Repo) getHeadCommit() (*object.Commit, error) {
 	return commit, nil
 }
 
+// IsDirectory checks if the reference at a path if a directory
+func (r *Repo) IsDirectory(path string) (bool, error) {
+	return r.isFileMode(path, filemode.Dir)
+}
+
+// IsFile checks if the reference at a path if a regular file
+func (r *Repo) IsFile(path string) (bool, error) {
+	return r.isFileMode(path, filemode.Regular)
+}
+
+func (r *Repo) isFileMode(path string, mode filemode.FileMode) (bool, error) {
+	commit, err := r.getHeadCommit()
+	if err != nil {
+		return false, fmt.Errorf("error fetching head commit: %v", err)
+	}
+	tree, err := commit.Tree()
+	if err != nil {
+		return false, fmt.Errorf("error fetching commit tree: %v", err)
+	}
+
+	entry, err := tree.FindEntry(path)
+	if err != nil {
+		return false, fmt.Errorf("error looking up path: %v", err)
+	}
+	return entry.Mode == mode, nil
+}
+
 // Contents returns the content of the File as a string.
 //
 // Note: Contents() does not verify file type and will return binary files as a (probably useless) string representation.
