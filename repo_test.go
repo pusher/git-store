@@ -141,6 +141,44 @@ var _ = Describe("GitStore", func() {
 				Expect(lastUpdated).To(BeTemporally("==", expectedTime))
 			})
 
+			Context("the IsFile method", func() {
+				It("Should correctly identify regular files", func() {
+					isFile, err := repo.IsFile("CHANGELOG")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(isFile).To(BeTrue())
+				})
+
+				It("Should correctly identify non-regular files", func() {
+					isFile, err := repo.IsFile("vendor")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(isFile).To(BeFalse())
+				})
+
+				It("Should throw an error if an invalid path is given", func() {
+					_, err := repo.IsFile("not-valid")
+					Expect(err).To(HaveOccurred())
+				})
+			})
+
+			Context("the IsDirectory method", func() {
+				It("Should correctly identify directories", func() {
+					isFile, err := repo.IsDirectory("vendor")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(isFile).To(BeTrue())
+				})
+
+				It("Should correctly identify non-directories", func() {
+					isFile, err := repo.IsDirectory("CHANGELOG")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(isFile).To(BeFalse())
+				})
+
+				It("Should throw an error if an invalid path is given", func() {
+					_, err := repo.IsDirectory("not-valid")
+					Expect(err).To(HaveOccurred())
+				})
+			})
+
 			var findsFiles = func(path string, count int) {
 				It(fmt.Sprintf("Finds %d files inside path %s", count, path), func() {
 					files, err := repo.GetAllFiles(path, true)
