@@ -36,8 +36,8 @@ type Repo struct {
 
 // File represents a file within a git repository.
 type File struct {
-	Log  GitLog // Log contians the git log information for this file at the current reference.
-	file *object.File
+	file       *object.File
+	headCommit *object.Commit
 }
 
 // GitLog contains information about a commit from the git repository log.
@@ -158,24 +158,6 @@ func (r *Repo) FetchContext(ctx context.Context) error {
 
 // GetFile returns a pointer to a File from the repository that can be used to read its contents.
 func (r *Repo) GetFile(path string) (*File, error) {
-	// Open file from repository
-	file, err := r.getFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load file %s: %v", path, err)
-	}
-
-	fileLog, err := r.getFileLog(path)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get log: %v", err)
-	}
-
-	return &File{
-		file: file,
-		Log:  fileLog,
-	}, nil
-}
-
-func (r *Repo) getFile(path string) (*object.File, error) {
 	commit, err := r.getHeadCommit()
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch HEAD commit: %v", err)
@@ -185,42 +167,11 @@ func (r *Repo) getFile(path string) (*object.File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to load file: %v", err)
 	}
-	return file, nil
-}
 
-func (r *Repo) getBlame(path string) (*git.BlameResult, error) {
-	commit, err := r.getHeadCommit()
-	if err != nil {
-		return nil, fmt.Errorf("unable to fetch HEAD commit: %v", err)
-	}
-
-	blame, err := git.Blame(commit, path)
-	if err != nil {
-		fmt.Printf("WARN: failed to fetch git blame: %v", err)
-		return &git.BlameResult{Lines: []*git.Line{}}, nil
-	}
-	return blame, nil
-}
-
-func (r *Repo) getFileLog(path string) (GitLog, error) {
-	blame, err := r.getBlame(path)
-	if err != nil {
-		return GitLog{}, fmt.Errorf("unable to get blame for %s: %v", path, err)
-	}
-
-	var fileLog GitLog
-	for _, line := range blame.Lines {
-		if line.Date.After(fileLog.Date) {
-			fileLog = GitLog{
-				Date:   line.Date,
-				Hash:   line.Hash,
-				Author: line.Author,
-				Text:   line.Text,
-			}
-		}
-	}
-
-	return fileLog, nil
+	return &File{
+		file:       file,
+		headCommit: commit,
+	}, nil
 }
 
 // GetAllFiles returns a map of Files.
@@ -251,14 +202,7 @@ func (r *Repo) GetAllFiles(subPath string, ignoreSymlinks bool) (map[string]*Fil
 			continue
 		}
 
-		fileLog, err := r.getFileLog(path)
-		if err != nil {
-			return nil, fmt.Errorf("unable to get log for %s: %v", path, err)
-		}
-		files[path] = &File{
-			file: file,
-			Log:  fileLog,
-		}
+		files[path] = &File{file: file}
 	}
 	return files, nil
 }
@@ -348,4 +292,36 @@ func (f *File) Contents() string {
 		return ""
 	}
 	return content
+}
+
+func (f *File) getBlame() (*git.BlameResult, error) {
+	blame, err := git.Blame(f.headCommit, f.file.Name)
+	if err != nil {
+		fmt.Printf("WARN: failed to fetch git blame: %v", err)
+		return &git.BlameResult{Lines: []*git.Line{}}, nil
+	}
+	return blame, nil
+}
+
+// FileLog returns the file log for the current file.
+func (f *File) FileLog() (GitLog, error) {
+	blame, err := f.getBlame()
+
+	if err != nil {
+		return GitLog{}, fmt.Errorf("unable to get blame for %s: %v", f.file.Name, err)
+	}
+
+	var fileLog GitLog
+	for _, line := range blame.Lines {
+		if line.Date.After(fileLog.Date) {
+			fileLog = GitLog{
+				Date:   line.Date,
+				Hash:   line.Hash,
+				Author: line.Author,
+				Text:   line.Text,
+			}
+		}
+	}
+
+	return fileLog, nil
 }

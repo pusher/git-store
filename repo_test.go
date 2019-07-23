@@ -111,6 +111,18 @@ var _ = Describe("GitStore", func() {
 				expectedTime := time.Date(2015, time.March, 31, 13, 42, 21, 0, utcPlus2)
 				Expect(lastUpdated).To(BeTemporally("==", expectedTime))
 			})
+
+			It("Should be able to get blame information", func() {
+				license, _ := repo.GetFile("LICENSE")
+				log, err := license.FileLog()
+				Expect(err).To(BeNil())
+				utcPlus2 := time.FixedZone("+0200", int(2*time.Hour.Seconds()))
+				expectedTime := time.Date(2015, time.March, 31, 13, 42, 21, 0, utcPlus2)
+				Expect(log.Date).To(BeTemporally("==", expectedTime))
+				Expect(log.Hash.String()).To(Equal("b029517f6300c2da0f4b651b8642506cd6aaf45d"))
+				Expect(log.Author).To(Equal("mcuadros@gmail.com"))
+				Expect(log.Text).To(Equal("The MIT License (MIT)"))
+			})
 		})
 
 		Context("and the eighth commit is checkout out", func() {
@@ -139,6 +151,18 @@ var _ = Describe("GitStore", func() {
 				utcPlus2 := time.FixedZone("+0200", int(2*time.Hour.Seconds()))
 				expectedTime := time.Date(2015, time.April, 5, 23, 30, 47, 0, utcPlus2)
 				Expect(lastUpdated).To(BeTemporally("==", expectedTime))
+			})
+
+			It("Should be able to get blame information", func() {
+				foo, _ := repo.GetFile("vendor/foo.go")
+				log, err := foo.FileLog()
+				Expect(err).To(BeNil())
+				utcPlus2 := time.FixedZone("+0200", int(2*time.Hour.Seconds()))
+				expectedTime := time.Date(2015, time.April, 5, 23, 30, 47, 0, utcPlus2)
+				Expect(log.Date).To(BeTemporally("==", expectedTime))
+				Expect(log.Hash.String()).To(Equal("6ecf0ef2c2dffb796033e5a02219af86ec6584e5"))
+				Expect(log.Author).To(Equal("mcuadros@gmail.com"))
+				Expect(log.Text).To(Equal("package main"))
 			})
 
 			Context("the IsFile method", func() {
