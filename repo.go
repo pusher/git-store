@@ -91,7 +91,7 @@ func (r *Repo) CheckoutContext(ctx context.Context, ref string) error {
 
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	//Perform checkout operation on worktree
+	// Perform checkout operation on worktree
 	err = workTree.Checkout(&git.CheckoutOptions{
 		Hash:  *hash,
 		Force: true,
