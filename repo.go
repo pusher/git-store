@@ -243,14 +243,11 @@ func (r *Repo) GetAllFiles(subPath string, ignoreSymlinks bool) (map[string]*Fil
 			continue
 		}
 
-		fileLog, err := r.getFileLog(path)
-		if err != nil {
-			return nil, fmt.Errorf("unable to get log for %s: %v", path, err)
-		}
-		files[path] = &File{
-			file: file,
-			Log:  fileLog,
-		}
+		// fileLog, err := r.getFileLog(path)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("unable to get log for %s: %v", path, err)
+		// }
+		files[path] = &File{file: file}
 	}
 	return files, nil
 }
