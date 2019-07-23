@@ -14,6 +14,7 @@ limitations under the License.
 package gitstore
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -136,9 +137,11 @@ func (r *Repo) Fetch() error {
 
 // fetch performs a fetch on the internal repository while under a lock
 func (r *Repo) fetch() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	return r.repository.Fetch(&git.FetchOptions{
+	return r.repository.FetchContext(ctx, &git.FetchOptions{
 		Auth:  r.auth,
 		Force: true,
 		Tags:  git.AllTags,
