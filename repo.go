@@ -14,6 +14,7 @@ limitations under the License.
 package gitstore
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -63,11 +64,11 @@ func (r *Repo) setAuth(auth transport.AuthMethod) {
 	r.auth = auth
 }
 
-// Checkout performs a Git checkout of the repository at the provided reference.
+// CheckoutContext performs a Git checkout of the repository at the provided reference.
 //
 // Note: It is assumed that the repository has already been cloned prior to Checkout() being called.
-func (r *Repo) Checkout(ref string) error {
-	err := r.Fetch()
+func (r *Repo) CheckoutContext(ctx context.Context, ref string) error {
+	err := r.FetchContext(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to fetch repository: %v", err)
 	}
@@ -101,6 +102,13 @@ func (r *Repo) Checkout(ref string) error {
 	return nil
 }
 
+// Checkout performs a Git checkout of the repository at the provided reference.
+//
+// Note: It is assumed that the repository has already been cloned prior to Checkout() being called.
+func (r *Repo) Checkout(ref string) error {
+  return r.CheckoutContext(context.Background(), ref)
+}
+
 // parseReference attempts to convert the git reference into a hash
 func (r *Repo) parseReference(ref string) (*plumbing.Hash, error) {
 	r.mutex.RLock()
@@ -125,24 +133,27 @@ func (r *Repo) parseReference(ref string) (*plumbing.Hash, error) {
 // Note: While Fetch itself is thread-safe in that it ensures a previous Fetch() is completed before starting a new one,
 // the Repo is not. If Fetch is called from two go routines, subsequent reads may be non-deterministic.
 func (r *Repo) Fetch() error {
+  return r.FetchContext(context.Background())
+}
+
+// FetchContext performs a Git fetch of the repository.
+//
+// Note: While Fetch itself is thread-safe in that it ensures a previous Fetch() is completed before starting a new one,
+// the Repo is not. If Fetch is called from two go routines, subsequent reads may be non-deterministic.
+func (r *Repo) FetchContext(ctx context.Context) error {
+	r.mutex.Lock()
 	// Perform a fetch on the repository
-	err := r.fetch()
+  err := r.repository.FetchContext(ctx, &git.FetchOptions{
+		Auth:  r.auth,
+		Force: true,
+		Tags:  git.AllTags,
+	})
+	r.mutex.Unlock()
 	// Ignore "already-up-to-date" error
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return fmt.Errorf("unable to fetch repository: %v", err)
 	}
 	return nil
-}
-
-// fetch performs a fetch on the internal repository while under a lock
-func (r *Repo) fetch() error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	return r.repository.Fetch(&git.FetchOptions{
-		Auth:  r.auth,
-		Force: true,
-		Tags:  git.AllTags,
-	})
 }
 
 // GetFile returns a pointer to a File from the repository that can be used to read its contents.
