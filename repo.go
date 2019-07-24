@@ -64,6 +64,13 @@ func (r *Repo) setAuth(auth transport.AuthMethod) {
 	r.auth = auth
 }
 
+// Checkout performs a Git checkout of the repository at the provided reference.
+//
+// Note: It is assumed that the repository has already been cloned prior to Checkout() being called.
+func (r *Repo) Checkout(ref string) error {
+	return r.CheckoutContext(context.Background(), ref)
+}
+
 // CheckoutContext performs a Git checkout of the repository at the provided reference.
 //
 // Note: It is assumed that the repository has already been cloned prior to Checkout() being called.
@@ -100,13 +107,6 @@ func (r *Repo) CheckoutContext(ctx context.Context, ref string) error {
 		return fmt.Errorf("unable to checkout reference %s: %v", ref, err)
 	}
 	return nil
-}
-
-// Checkout performs a Git checkout of the repository at the provided reference.
-//
-// Note: It is assumed that the repository has already been cloned prior to Checkout() being called.
-func (r *Repo) Checkout(ref string) error {
-	return r.CheckoutContext(context.Background(), ref)
 }
 
 // parseReference attempts to convert the git reference into a hash
