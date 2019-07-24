@@ -177,7 +177,7 @@ func (r *Repo) GetFile(path string) (*File, error) {
 // GetAllFiles returns a map of Files.
 // Each file is keyed in the map by it's path within the repository
 func (r *Repo) GetAllFiles(subPath string, ignoreSymlinks bool) (map[string]*File, error) {
-	rawFiles, err := r.getAllFiles()
+	allFiles, err := r.getAllFiles()
 	if err != nil {
 		return nil, fmt.Errorf("unable to read files from repository: %v", err)
 	}
@@ -191,23 +191,23 @@ func (r *Repo) GetAllFiles(subPath string, ignoreSymlinks bool) (map[string]*Fil
 	}
 
 	files := make(map[string]*File)
-	for path, file := range rawFiles {
+	for path, file := range allFiles {
 		// If subPath is set, skip the file if it doesn't match
 		if g != nil && !g.Match(path) {
 			continue
 		}
 
 		// If the file is a symlink, skip it
-		if ignoreSymlinks && file.Mode == filemode.Symlink {
+		if ignoreSymlinks && file.file.Mode == filemode.Symlink {
 			continue
 		}
 
-		files[path] = &File{file: file}
+		files[path] = file
 	}
 	return files, nil
 }
 
-func (r *Repo) getAllFiles() (map[string]*object.File, error) {
+func (r *Repo) getAllFiles() (map[string]*File, error) {
 	commit, err := r.getHeadCommit()
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch HEAD commit: %v", err)
@@ -218,9 +218,12 @@ func (r *Repo) getAllFiles() (map[string]*object.File, error) {
 		return nil, fmt.Errorf("unable to load files: %v", err)
 	}
 
-	files := make(map[string]*object.File)
+	files := make(map[string]*File)
 	fileiter.ForEach(func(file *object.File) error {
-		files[file.Name] = file
+		files[file.Name] = &File{
+			file:       file,
+			headCommit: commit,
+		}
 		return nil
 	})
 
@@ -306,7 +309,6 @@ func (f *File) getBlame() (*git.BlameResult, error) {
 // FileLog returns the file log for the current file.
 func (f *File) FileLog() (GitLog, error) {
 	blame, err := f.getBlame()
-
 	if err != nil {
 		return GitLog{}, fmt.Errorf("unable to get blame for %s: %v", f.file.Name, err)
 	}
