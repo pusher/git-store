@@ -240,6 +240,11 @@ func (r *Repo) LastUpdated() (time.Time, error) {
 	return commit.Committer.When, nil
 }
 
+// HeadCommit returns the head commit of the currently checked out reference.
+func (r *Repo) HeadCommit() (*object.Commit, error) {
+  return r.getHeadCommit()
+}
+
 func (r *Repo) getHeadCommit() (*object.Commit, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
