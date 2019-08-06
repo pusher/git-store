@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/gobwas/glob"
+	"github.com/golang/glog"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
@@ -95,6 +96,7 @@ func (r *Repo) CheckoutContext(ctx context.Context, ref string) error {
 	if err != nil {
 		return fmt.Errorf("unable to parse ref %s: %v", ref, err)
 	}
+	glog.V(2).Infof("Reference '%s' resolved to '%s'", ref, hash.String())
 
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -116,13 +118,16 @@ func (r *Repo) parseReference(ref string) (*plumbing.Hash, error) {
 	// attempt to parse ref as it is
 	hash, err := r.repository.ResolveRevision(plumbing.Revision(ref))
 	if err == nil {
+		glog.V(2).Infof("#1 '%s' resolved to '%s'", ref, hash.String())
 		// No error so return hash
 		return hash, nil
 	}
+	glog.V(2).Infof("error resolving '%s': %v", ref, err)
 	// attempt to pars ref prefixed by 'refs/remotes/origin'
 	hash, err = r.repository.ResolveRevision(plumbing.Revision(fmt.Sprintf("%s/%s", "refs/remotes/origin", ref)))
 	if err == nil {
 		// No error so return hash
+		glog.V(2).Infof("#2 '%s' resolved to '%s'", ref, hash.String())
 		return hash, nil
 	}
 	return nil, err
@@ -149,6 +154,7 @@ func (r *Repo) FetchContext(ctx context.Context) error {
 		Tags:  git.AllTags,
 	})
 	r.mutex.Unlock()
+	glog.V(2).Infof("repository.FetchContext() returned: %v", err)
 	// Ignore "already-up-to-date" error
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return fmt.Errorf("unable to fetch repository: %v", err)
@@ -242,7 +248,7 @@ func (r *Repo) LastUpdated() (time.Time, error) {
 
 // HeadCommit returns the head commit of the currently checked out reference.
 func (r *Repo) HeadCommit() (*object.Commit, error) {
-  return r.getHeadCommit()
+	return r.getHeadCommit()
 }
 
 func (r *Repo) getHeadCommit() (*object.Commit, error) {
