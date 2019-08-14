@@ -25,7 +25,7 @@ var _ = Describe("GitStore", func() {
 		var repo *Repo
 
 		BeforeEach(func() {
-			rs = NewRepoStore()
+			rs = NewRepoStore("")
 			var err error
 			repo, err = rs.Get(&RepoRef{
 				URL: repositoryURL,

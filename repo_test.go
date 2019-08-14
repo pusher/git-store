@@ -25,7 +25,7 @@ var _ = Describe("GitStore", func() {
 		var done <-chan struct{}
 
 		BeforeEach(func() {
-			rs = NewRepoStore()
+			rs = NewRepoStore("")
 			var err error
 			rc, done, err = rs.GetAsync(&RepoRef{
 				URL: repositoryURL,
@@ -49,7 +49,7 @@ var _ = Describe("GitStore", func() {
 		var repo *Repo
 
 		BeforeEach(func() {
-			rs = NewRepoStore()
+			rs = NewRepoStore("")
 			var err error
 			repo, err = rs.Get(&RepoRef{
 				URL: repositoryURL,
