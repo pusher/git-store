@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"strings"
 
 	"github.com/gobwas/glob"
 	git "gopkg.in/src-d/go-git.v4"
@@ -57,6 +58,95 @@ func newRepo(repo *git.Repository, auth transport.AuthMethod) *Repo {
 	}
 }
 
+// cleanNewRepo ensures that the default branch of a repository is removed
+// after the repository has been cloned.
+// Without cleaning, a repo will always resolve the local branch rather than the
+// remote branch.
+func cleanNewRepo(repo *git.Repository) error {
+	err := checkoutHeadHash(repo)
+	if err != nil {
+		return fmt.Errorf("error checking out HEAD: %v", err)
+	}
+
+	err = cleanLocalBranches(repo)
+	if err != nil {
+		return fmt.Errorf("error cleaning local branches: %v", err)
+	}
+
+	err = cleanLocalReferences(repo)
+	if err != nil {
+		return fmt.Errorf("error cleaning local references: %v", err)
+	}
+	return nil
+}
+
+// checkoutHeadHash detaches the worktree at the HEAD commit
+// (ie no longer on a branch).
+func checkoutHeadHash(repo *git.Repository) error {
+	head, err := repo.Head()
+	if err != nil {
+		return fmt.Errorf("unable to resolve HEAD commit: %v", err)
+	}
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("unable to load worktree: %v", err)
+	}
+
+	err = worktree.Checkout(&git.CheckoutOptions{
+		Hash:  head.Hash(),
+		Force: true,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to checkout HEAD hash: %v", err)
+	}
+	return nil
+}
+
+// cleanLocalBranches removes references to local branches from the repository
+func cleanLocalBranches(repo *git.Repository) error {
+	branches, err := repo.Branches()
+	if err != nil {
+		return fmt.Errorf("unable to load branches: %v", err)
+	}
+	err = branches.ForEach(func(ref *plumbing.Reference) error {
+		if ref.Name().IsBranch() {
+			// This is a locally stored branch
+			branch := strings.TrimLeft(ref.Name().String(), "refs/heads/")
+			err := repo.DeleteBranch(branch)
+			if err != nil {
+				return fmt.Errorf("error deleting branch %s: %v", ref.Name(), err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// cleanLocalReferences removes local references from the repository
+func cleanLocalReferences(repo *git.Repository) error {
+	refs, err := repo.References()
+	if err != nil {
+		return fmt.Errorf("unable to load branches: %v", err)
+	}
+	err = refs.ForEach(func(ref *plumbing.Reference) error {
+		if ref.Name().IsBranch() {
+			// This is a local reference and must be removed
+			err := repo.Storer.RemoveReference(ref.Name())
+			if err != nil {
+				return fmt.Errorf("error deleting reference %s: %v", ref.Name(), err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // setAuth sets the repositories auth method
 func (r *Repo) setAuth(auth transport.AuthMethod) {
 	r.mutex.Lock()
@@ -84,11 +174,6 @@ func (r *Repo) CheckoutContext(ctx context.Context, ref string) error {
 	workTree, err := r.repository.Worktree()
 	if err != nil {
 		return fmt.Errorf("unable to fetch repository worktree: %v", err)
-	}
-
-	// Resolve remote master not local branch
-	if ref == "master" {
-		ref = "refs/remotes/origin/master"
 	}
 
 	hash, err := r.parseReference(ref)

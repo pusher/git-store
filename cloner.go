@@ -1,6 +1,7 @@
 package gitstore
 
 import (
+	"fmt"
 	"sync"
 
 	git "gopkg.in/src-d/go-git.v4"
@@ -32,13 +33,18 @@ func (rc *AsyncRepoCloner) Clone(auth transport.AuthMethod) <-chan struct{} {
 			Auth: auth,
 		})
 		rc.mutex.Lock()
+		defer rc.mutex.Unlock()
 		if err != nil {
 			rc.Error = err
-		} else {
-			rc.Repo = newRepo(repository, auth)
-			rc.Ready = true
+			return
 		}
-		rc.mutex.Unlock()
+		err = cleanNewRepo(repository)
+		if err != nil {
+			rc.Error = fmt.Errorf("unable to clean new repo: %v", err)
+			return
+		}
+		rc.Repo = newRepo(repository, auth)
+		rc.Ready = true
 	}()
 	return done
 }
