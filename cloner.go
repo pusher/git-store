@@ -13,12 +13,12 @@ import (
 
 // AsyncRepoCloner provides an asynchronous repository cloner that can perform long-running checkout operations without blocking.
 type AsyncRepoCloner struct {
-	Ready    bool     // Ready indicates whether the clone operation has completed.
-	RepoRef  *RepoRef // RepoRef is a pointer to the RepoRef handled by this cloner.
-	Repo     *Repo    // Repo contains the actual repository once clone has completed.
-	Error    error    // Error is the last error encountered during the clone operation or nil.
-	repoPath string   // repoPath is the path to clone the repository into.
-	mutex    sync.Mutex
+	Ready   bool     // Ready indicates whether the clone operation has completed.
+	RepoRef *RepoRef // RepoRef is a pointer to the RepoRef handled by this cloner.
+	Repo    *Repo    // Repo contains the actual repository once clone has completed.
+	Error   error    // Error is the last error encountered during the clone operation or nil.
+	repoDir string   // repoDir is the path to clone the repository into.
+	mutex   sync.Mutex
 }
 
 // Clone starts an asynchronous clone of the requested repository and sets Ready to true when the repository is cloned successfully.
@@ -34,10 +34,10 @@ func (rc *AsyncRepoCloner) Clone(auth transport.AuthMethod) <-chan struct{} {
 
 		var err error
 		var repository *git.Repository
-		if rc.repoPath != "" {
-			repository, err = git.PlainClone(rc.repoPath, false, cloneOptions)
+		if rc.repoDir != "" {
+			repository, err = git.PlainClone(rc.repoDir, false, cloneOptions)
 		} else {
-			// No repoPath provided, default to in memory clone
+			// No repoDir provided, default to in memory clone
 			fs := memfs.New()
 			storer := memory.NewStorage()
 			repository, err = git.Clone(storer, fs, cloneOptions)

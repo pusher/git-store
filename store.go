@@ -34,15 +34,15 @@ var (
 type RepoStore struct {
 	repositories map[string]*AsyncRepoCloner
 	mutex        sync.RWMutex
-	repoPath     string
+	repoDir      string
 }
 
 // NewRepoStore initializes a new RepoStore.
-func NewRepoStore(repoPath string) *RepoStore {
+func NewRepoStore(repoDir string) *RepoStore {
 	return &RepoStore{
 		repositories: make(map[string]*AsyncRepoCloner),
 		mutex:        sync.RWMutex{},
-		repoPath:     repoPath,
+		repoDir:      repoDir,
 	}
 }
 
@@ -91,14 +91,14 @@ func (rs *RepoStore) GetAsync(ref *RepoRef) (*AsyncRepoCloner, <-chan struct{}, 
 		return returnRC(rc)
 	}
 
-	var repoPath string
-	if rs.repoPath != "" {
-		repoPath = path.Join(rs.repoPath, ref.URL)
+	var repoDir string
+	if rs.repoDir != "" {
+		repoDir = path.Join(rs.repoDir, ref.URL)
 	}
 	rc := &AsyncRepoCloner{
-		RepoRef:  ref,
-		mutex:    sync.Mutex{},
-		repoPath: repoPath,
+		RepoRef: ref,
+		mutex:   sync.Mutex{},
+		repoDir: repoDir,
 	}
 
 	rs.repositories[ref.URL] = rc
