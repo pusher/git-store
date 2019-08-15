@@ -16,7 +16,7 @@ package gitstore
 import (
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -96,7 +96,7 @@ var _ = Describe("GitStore", func() {
 			})
 
 			It("should clone into a directory in the tmpDir", func() {
-				info, err := os.Stat(path.Join(tmpDir, repositoryURL))
+				info, err := os.Stat(filepath.Join(tmpDir, repositoryURL))
 				Expect(err).To(BeNil())
 				Expect(info.IsDir()).To(BeTrue())
 			})

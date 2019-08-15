@@ -16,7 +16,7 @@ package gitstore
 import (
 	"flag"
 	"fmt"
-	"path"
+	"path/filepath"
 	"sync"
 
 	"github.com/golang/glog"
@@ -93,7 +93,7 @@ func (rs *RepoStore) GetAsync(ref *RepoRef) (*AsyncRepoCloner, <-chan struct{}, 
 
 	var repoDir string
 	if rs.repoDir != "" {
-		repoDir = path.Join(rs.repoDir, ref.URL)
+		repoDir = filepath.Join(rs.repoDir, ref.URL)
 	}
 	rc := &AsyncRepoCloner{
 		RepoRef: ref,
