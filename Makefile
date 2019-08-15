@@ -12,6 +12,7 @@ all: distclean test
 .PHONY: distclean
 distclean:
 	rm -rf vendor
+	rm .env
 
 .PHONY: fmt
 fmt:
@@ -42,6 +43,10 @@ vendor:
 	@ echo "$(GREEN)Pulling dependencies$(NC)"
 	$(DEP) ensure --vendor-only
 	@ echo
+
+.env:
+	@ echo "$(GREEN)Configuring$(NC)"
+	./configure
 
 .PHONY: test
 test: vendor
