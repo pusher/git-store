@@ -16,6 +16,7 @@ package gitstore
 import (
 	"flag"
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	"github.com/golang/glog"
@@ -33,13 +34,15 @@ var (
 type RepoStore struct {
 	repositories map[string]*AsyncRepoCloner
 	mutex        sync.RWMutex
+	repoDir      string
 }
 
 // NewRepoStore initializes a new RepoStore.
-func NewRepoStore() *RepoStore {
+func NewRepoStore(repoDir string) *RepoStore {
 	return &RepoStore{
 		repositories: make(map[string]*AsyncRepoCloner),
 		mutex:        sync.RWMutex{},
+		repoDir:      repoDir,
 	}
 }
 
@@ -88,9 +91,14 @@ func (rs *RepoStore) GetAsync(ref *RepoRef) (*AsyncRepoCloner, <-chan struct{}, 
 		return returnRC(rc)
 	}
 
+	var repoDir string
+	if rs.repoDir != "" {
+		repoDir = filepath.Join(rs.repoDir, ref.URL)
+	}
 	rc := &AsyncRepoCloner{
 		RepoRef: ref,
 		mutex:   sync.Mutex{},
+		repoDir: repoDir,
 	}
 
 	rs.repositories[ref.URL] = rc

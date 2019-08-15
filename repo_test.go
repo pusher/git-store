@@ -2,6 +2,8 @@ package gitstore
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -19,37 +21,12 @@ func main() {
 
 var _ = Describe("GitStore", func() {
 
-	Context("When the repository is cloned asynchronously", func() {
-		var rs *RepoStore
-		var rc *AsyncRepoCloner
-		var done <-chan struct{}
-
-		BeforeEach(func() {
-			rs = NewRepoStore()
-			var err error
-			rc, done, err = rs.GetAsync(&RepoRef{
-				URL: repositoryURL,
-			})
-			Expect(err).ToNot(HaveOccurred())
-			Eventually(done, 5*time.Second).Should(BeClosed())
-			Expect(rc.Ready).To(BeTrue())
-			err = rc.Repo.Checkout("master")
-			Expect(err).ToNot(HaveOccurred())
-			Expect(rc).ToNot(BeNil())
-		})
-
-		It("Should checkout the commit", func() {
-			err := rc.Repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")
-			Expect(err).ToNot(HaveOccurred())
-		})
-	})
-
-	Context("When the git repository is cloned", func() {
+	RepositoryTests := func(path string) {
 		var rs *RepoStore
 		var repo *Repo
 
 		BeforeEach(func() {
-			rs = NewRepoStore()
+			rs = NewRepoStore(path)
 			var err error
 			repo, err = rs.Get(&RepoRef{
 				URL: repositoryURL,
@@ -247,6 +224,51 @@ var _ = Describe("GitStore", func() {
 			findsFiles("json/*", 2)
 			findsFiles("vendor/*", 1)
 		})
+	}
 
+	Context("When the repository is cloned asynchronously", func() {
+		var rs *RepoStore
+		var rc *AsyncRepoCloner
+		var done <-chan struct{}
+
+		BeforeEach(func() {
+			rs = NewRepoStore("")
+			var err error
+			rc, done, err = rs.GetAsync(&RepoRef{
+				URL: repositoryURL,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(done, 5*time.Second).Should(BeClosed())
+			Expect(rc.Ready).To(BeTrue())
+			err = rc.Repo.Checkout("master")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(rc).ToNot(BeNil())
+		})
+
+		It("Should checkout the commit", func() {
+			err := rc.Repo.Checkout("b029517f6300c2da0f4b651b8642506cd6aaf45d")
+			Expect(err).ToNot(HaveOccurred())
+		})
+	})
+
+	Context("When the git repository is cloned in memory", func() {
+		RepositoryTests("")
+	})
+
+	Context("When the git repository is cloned to a directory", func() {
+		var tmpDir string
+
+		BeforeEach(func() {
+			// Create a temp directory for each test
+			var err error
+			tmpDir, err = ioutil.TempDir("", "git-store")
+			Expect(err).To(BeNil())
+		})
+
+		AfterEach(func() {
+			os.RemoveAll(tmpDir)
+		})
+
+		RepositoryTests(tmpDir)
 	})
 })

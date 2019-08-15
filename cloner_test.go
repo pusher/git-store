@@ -11,7 +11,7 @@ var _ = Describe("GitStore", func() {
 	var rs *RepoStore
 
 	BeforeEach(func() {
-		rs = NewRepoStore()
+		rs = NewRepoStore("")
 	})
 
 	Context("when a new repo is cloned", func() {

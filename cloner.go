@@ -17,6 +17,7 @@ type AsyncRepoCloner struct {
 	RepoRef *RepoRef // RepoRef is a pointer to the RepoRef handled by this cloner.
 	Repo    *Repo    // Repo contains the actual repository once clone has completed.
 	Error   error    // Error is the last error encountered during the clone operation or nil.
+	repoDir string   // repoDir is the path to clone the repository into.
 	mutex   sync.Mutex
 }
 
@@ -26,12 +27,22 @@ func (rc *AsyncRepoCloner) Clone(auth transport.AuthMethod) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		fs := memfs.New()
-		storer := memory.NewStorage()
-		repository, err := git.Clone(storer, fs, &git.CloneOptions{
+		cloneOptions := &git.CloneOptions{
 			URL:  rc.RepoRef.URL,
 			Auth: auth,
-		})
+		}
+
+		var err error
+		var repository *git.Repository
+		if rc.repoDir != "" {
+			repository, err = git.PlainClone(rc.repoDir, false, cloneOptions)
+		} else {
+			// No repoDir provided, default to in memory clone
+			fs := memfs.New()
+			storer := memory.NewStorage()
+			repository, err = git.Clone(storer, fs, cloneOptions)
+		}
+
 		rc.mutex.Lock()
 		defer rc.mutex.Unlock()
 		if err != nil {
