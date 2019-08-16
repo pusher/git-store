@@ -1,8 +1,10 @@
 package gitstore
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo"
@@ -45,6 +47,38 @@ var _ = Describe("GitStore", func() {
 				ref, err := storer.ResolveReference(repo.repository.Storer, plumbing.ReferenceName("refs/heads/master"))
 				Expect(err).To(HaveOccurred())
 				Expect(ref).To(BeNil())
+			})
+		})
+
+		Context("when a repo has a non-master branch", func() {
+			var repositoryDir string
+
+			BeforeEach(func() {
+				var err error
+				repositoryDir, err = ioutil.TempDir("", "git-store")
+				Expect(err).ToNot(HaveOccurred())
+
+				cmd := exec.Command("tar", "-zxf", fixturesRepoPath, "-C", repositoryDir, "--strip-components", "1")
+				err = cmd.Run()
+				Expect(err).ToNot(HaveOccurred())
+
+				for _, branch := range []string{"staging", "production", "foo", "bar", "head"} {
+					cmd := exec.Command("git", "-C", repositoryDir, "checkout", "-b", branch)
+					err = cmd.Run()
+					Expect(err).ToNot(HaveOccurred())
+				}
+			})
+
+			AfterEach(func() {
+				os.RemoveAll(repositoryDir)
+			})
+
+			It("can be cloned without errors", func() {
+				url := fmt.Sprintf("file://%s", repositoryDir)
+				_, err := rs.Get(&RepoRef{
+					URL: url,
+				})
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 	}
