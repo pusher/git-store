@@ -111,7 +111,7 @@ func cleanLocalBranches(repo *git.Repository) error {
 	err = branches.ForEach(func(ref *plumbing.Reference) error {
 		if ref.Name().IsBranch() {
 			// This is a locally stored branch
-			branch := strings.TrimLeft(ref.Name().String(), "refs/heads/")
+			branch := strings.TrimPrefix(ref.Name().String(), "refs/heads/")
 			err := repo.DeleteBranch(branch)
 			if err != nil {
 				return fmt.Errorf("error deleting branch %s: %v", ref.Name(), err)
