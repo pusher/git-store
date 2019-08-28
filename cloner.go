@@ -36,6 +36,9 @@ func (rc *AsyncRepoCloner) Clone(auth transport.AuthMethod) <-chan struct{} {
 		var repository *git.Repository
 		if rc.repoDir != "" {
 			repository, err = git.PlainClone(rc.repoDir, false, cloneOptions)
+			if err == git.ErrRepositoryAlreadyExists {
+				repository, err = git.PlainOpen(rc.repoDir)
+			}
 		} else {
 			// No repoDir provided, default to in memory clone
 			fs := memfs.New()
