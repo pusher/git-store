@@ -123,6 +123,16 @@ var _ = Describe("GitStore", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(files).To(HaveLen(0))
 			})
+
+			It("should be able to do it multiple times", func() {
+				for i := 0; i <= 3; i++ {
+					rs := NewRepoStore(tmpDir)
+					_, err := rs.Get(&RepoRef{
+						URL: repositoryURL,
+					})
+					Expect(err).ToNot(HaveOccurred())
+				}
+			})
 		})
 	})
 })
