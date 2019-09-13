@@ -16,9 +16,9 @@ package gitstore
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
-	"strings"
 
 	"github.com/gobwas/glob"
 	git "gopkg.in/src-d/go-git.v4"
